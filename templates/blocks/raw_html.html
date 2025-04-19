@@ -1,0 +1,8 @@
+{% comment %}
+Template for Raw HTML block
+{% endcomment %}
+
+<div id="block-{{ block.id }}" class="block block-html {% if block.css_class %}{{ block.css_class }}{% endif %}" 
+     {% if block.get_style %}style="{{ block.get_style }}"{% endif %}>
+    {{ block.html_content|safe }}
+</div>

@@ -1,0 +1,78 @@
+{% comment %}
+Template for Hero block
+{% endcomment %}
+
+{% load json_filters %}
+
+{% with settings=block.get_settings %}
+<div id="block-{{ block.id }}" class="block block-hero {% if block.css_class %}{{ block.css_class }}{% endif %}" 
+     {% if block.get_style %}style="{{ block.get_style }}"{% endif %}>
+    
+    <div class="container-fluid px-0">
+        <div class="hero-container position-relative" 
+             style="background-image: url('{{ settings.background_image|default:'' }}'); 
+                    background-size: cover; 
+                    background-position: center;
+                    min-height: {{ settings.height|default:'500px' }};">
+            
+            <!-- Overlay -->
+            {% if settings.overlay_color %}
+            <div class="hero-overlay position-absolute top-0 start-0 w-100 h-100" 
+                 style="background-color: {{ settings.overlay_color }}; 
+                        opacity: {{ settings.overlay_opacity|default:'0.5' }};"></div>
+            {% endif %}
+            
+            <!-- Content -->
+            <div class="container position-relative h-100 d-flex 
+                        {% if settings.content_position|default:'center' == 'center' %}
+                            align-items-center justify-content-center
+                        {% elif settings.content_position == 'left' %}
+                            align-items-center justify-content-start
+                        {% elif settings.content_position == 'right' %}
+                            align-items-center justify-content-end
+                        {% elif settings.content_position == 'top' %}
+                            align-items-start justify-content-center
+                        {% elif settings.content_position == 'bottom' %}
+                            align-items-end justify-content-center
+                        {% endif %}">
+                
+                <div class="hero-content text-{{ settings.text_alignment|default:'center' }} py-5"
+                     style="color: {{ settings.text_color|default:'#ffffff' }};">
+                    
+                    {% if settings.heading %}
+                    <h1 class="hero-heading display-4 mb-4">{{ settings.heading }}</h1>
+                    {% endif %}
+                    
+                    {% if settings.subheading %}
+                    <h2 class="hero-subheading mb-4">{{ settings.subheading }}</h2>
+                    {% endif %}
+                    
+                    {% if settings.description %}
+                    <div class="hero-description mb-4">
+                        {{ settings.description|safe }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if settings.button_text %}
+                    <div class="hero-buttons mt-4">
+                        <a href="{{ settings.button_url|default:'#' }}" 
+                           class="btn btn-{{ settings.button_style|default:'primary' }} btn-lg">
+                            {{ settings.button_text }}
+                        </a>
+                        
+                        {% if settings.button2_text %}
+                        <a href="{{ settings.button2_url|default:'#' }}" 
+                           class="btn btn-{{ settings.button2_style|default:'outline-light' }} btn-lg ms-2">
+                            {{ settings.button2_text }}
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+{% endwith %}

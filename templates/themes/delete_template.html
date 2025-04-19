@@ -1,0 +1,52 @@
+<!-- themes/delete_template.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
+    <a href="{% url 'themes:dashboard' %}">{% trans 'Templates' %}</a> &rsaquo;
+    {% trans 'Delete Template' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans 'Delete Template' %}</h1>
+    
+    <div class="module aligned">
+        <p>{% trans 'Are you sure you want to delete the following template?' %}</p>
+        
+        <table>
+            <tr>
+                <th>{% trans 'Name' %}</th>
+                <td>{{ template.name }}</td>
+            </tr>
+            <tr>
+                <th>{% trans 'Type' %}</th>
+                <td>{{ template.get_type_display }}</td>
+            </tr>
+            <tr>
+                <th>{% trans 'Slug' %}</th>
+                <td>{{ template.slug }}</td>
+            </tr>
+            <tr>
+                <th>{% trans 'Description' %}</th>
+                <td>{{ template.description|default:"-" }}</td>
+            </tr>
+        </table>
+        
+        <p class="warning" style="color: #ba2121; margin-top: 20px;">
+            {% trans 'Warning: This action cannot be undone. All references to this template will be broken.' %}
+        </p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="submit-row">
+                <input type="submit" value="{% trans 'Yes, I\'m sure' %}" class="default">
+                <a href="{% url 'themes:dashboard' %}" class="button">{% trans 'No, take me back' %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

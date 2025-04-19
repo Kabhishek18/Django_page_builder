@@ -1,0 +1,14 @@
+{% comment %}
+Template for WYSIWYG editor block
+{% endcomment %}
+
+<div id="block-{{ block.id }}" class="block block-wysiwyg {% if block.css_class %}{{ block.css_class }}{% endif %}" 
+     {% if block.get_style %}style="{{ block.get_style }}"{% endif %}>
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                {{ block.wysiwyg_content|safe }}
+            </div>
+        </div>
+    </div>
+</div>

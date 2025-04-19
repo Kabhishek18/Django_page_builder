@@ -1,0 +1,124 @@
+<!-- themes/edit_template.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="/static/css/codemirror.css">
+<script type="text/javascript" src="/static/js/codemirror.js"></script>
+<script type="text/javascript" src="/static/js/mode/htmlmixed.js"></script>
+<script type="text/javascript" src="/static/js/addon/edit/matchbrackets.js"></script>
+<style>
+.CodeMirror {
+    border: 1px solid #ddd;
+    height: 500px;
+}
+.template-tag-buttons {
+    margin-bottom: 10px;
+}
+.template-tag-buttons button {
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
+    <a href="{% url 'themes:dashboard' %}">{% trans 'Templates' %}</a> &rsaquo;
+    {% trans 'Edit Template' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans 'Edit Template' %}: {{ template.name }}</h1>
+    
+    <form method="post" id="template-form">
+        {% csrf_token %}
+        
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_name">{% trans 'Name' %}:</label>
+                    <input type="text" name="name" id="id_name" value="{{ template.name }}" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_slug">{% trans 'Slug' %}:</label>
+                    <input type="text" name="slug" id="id_slug" value="{{ template.slug }}" required>
+                    <p class="help">{% trans 'Used in template references. Can only contain letters, numbers, underscores or hyphens.' %}</p>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_type">{% trans 'Type' %}:</label>
+                    <select name="type" id="id_type">
+                        <option value="page" {% if template.type == 'page' %}selected{% endif %}>{% trans 'Page Template' %}</option>
+                        <option value="block" {% if template.type == 'block' %}selected{% endif %}>{% trans 'Block Template' %}</option>
+                        <option value="partial" {% if template.type == 'partial' %}selected{% endif %}>{% trans 'Partial Template' %}</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_description">{% trans 'Description' %}:</label>
+                    <textarea name="description" id="id_description" rows="3">{{ template.description }}</textarea>
+                </div>
+            </div>
+        </fieldset>
+        
+        <fieldset class="module aligned">
+            <h2>{% trans 'Template Content' %}</h2>
+            
+            <div class="template-tag-buttons">
+                <button type="button" class="button" data-snippet="{% raw %}{% for item in items %}&#10;    &#10;{% endfor %}{% endraw %}">for loop</button>
+                <button type="button" class="button" data-snippet="{% raw %}{% if condition %}&#10;    &#10;{% endif %}{% endraw %}">if</button>
+                <button type="button" class="button" data-snippet="{% raw %}{% block name %}&#10;    &#10;{% endblock %}{% endraw %}">block</button>
+                <button type="button" class="button" data-snippet="{% raw %}{% extends 'base.html' %}{% endraw %}">extends</button>
+                <button type="button" class="button" data-snippet="{% raw %}{% include 'template.html' %}{% endraw %}">include</button>
+                <button type="button" class="button" data-snippet="{% raw %}{{ variable }}{% endraw %}">variable</button>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <textarea name="content" id="id_content" rows="20" required>{{ template.content }}</textarea>
+                </div>
+            </div>
+        </fieldset>
+        
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Save' %}" class="default">
+            <a href="{% url 'themes:dashboard' %}" class="button">{% trans 'Cancel' %}</a>
+            <a href="{% url 'themes:preview' template.id %}" class="button">{% trans 'Preview' %}</a>
+            <a href="{% url 'themes:export_template' template.id %}" class="button">{% trans 'Export' %}</a>
+        </div>
+    </form>
+</div>
+
+<script>
+(function($) {
+    $(document).ready(function() {
+        // Initialize CodeMirror for syntax highlighting
+        var editor = CodeMirror.fromTextArea(document.getElementById("id_content"), {
+            mode: "htmlmixed",
+            lineNumbers: true,
+            matchBrackets: true,
+            indentUnit: 4,
+        });
+        
+        // Handle template tag buttons
+        $('.template-tag-buttons button').on('click', function() {
+            var snippet = $(this).data('snippet');
+            editor.replaceSelection(snippet);
+            editor.focus();
+        });
+    });
+})(django.jQuery);
+</script>
+{% endblock %}

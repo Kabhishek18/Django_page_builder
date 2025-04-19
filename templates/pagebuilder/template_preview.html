@@ -1,0 +1,12 @@
+<!-- templates/pagebuilder/template_preview.html -->
+<div class="template-preview-card">
+    <h3>{{ template_name|title }}</h3>
+    
+    <div class="template-code-preview">
+        <pre style="max-height: 150px; overflow: auto; background: #f5f5f5; padding: 10px; font-size: 12px; border: 1px solid #ddd;"><code>{{ template_content|truncatechars:500 }}</code></pre>
+    </div>
+    
+    <p class="help">
+        This template will be used to render the block content. You can customize it with block settings.
+    </p>
+</div>

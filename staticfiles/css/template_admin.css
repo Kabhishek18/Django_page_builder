@@ -1,0 +1,24 @@
+/* static/css/template_admin.css */
+.CodeMirror {
+    border: 1px solid #ddd;
+    height: 500px;
+}
+
+.CodeMirror.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100%;
+    z-index: 9999;
+}
+
+.template-tag-buttons {
+    margin-bottom: 10px;
+}
+
+.template-tag-buttons button {
+    margin-right: 5px;
+    margin-bottom: 5px;
+}

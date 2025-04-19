@@ -1,0 +1,126 @@
+<!-- templates/templates/dashboard.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
+    {% trans 'Template Management' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans 'Template Management' %}</h1>
+    
+    <div class="dashboard-grid">
+        <!-- Page Templates -->
+        <div class="dashboard-card">
+            <h2>{% trans 'Page Templates' %}</h2>
+            <div class="object-tools">
+                <a href="{% url 'admin:templates_template_add' %}?type=page" class="addlink">
+                    {% trans 'Add Page Template' %}
+                </a>
+            </div>
+            
+            {% if page_templates %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans 'Name' %}</th>
+                        <th>{% trans 'Last Updated' %}</th>
+                        <th>{% trans 'Actions' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in page_templates %}
+                    <tr>
+                        <td>{{ template.name }}</td>
+                        <td>{{ template.updated_at|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'admin:templates_template_change' template.id %}" class="button">Edit</a>
+                            <a href="{% url 'templates:preview' template.id %}" class="button" target="_blank">Preview</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{% trans 'No page templates found.' %}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Block Templates -->
+        <div class="dashboard-card">
+            <h2>{% trans 'Block Templates' %}</h2>
+            <div class="object-tools">
+                <a href="{% url 'admin:templates_template_add' %}?type=block" class="addlink">
+                    {% trans 'Add Block Template' %}
+                </a>
+            </div>
+            
+            {% if block_templates %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans 'Name' %}</th>
+                        <th>{% trans 'Last Updated' %}</th>
+                        <th>{% trans 'Actions' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in block_templates %}
+                    <tr>
+                        <td>{{ template.name }}</td>
+                        <td>{{ template.updated_at|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'admin:templates_template_change' template.id %}" class="button">Edit</a>
+                            <a href="{% url 'templates:preview' template.id %}" class="button" target="_blank">Preview</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{% trans 'No block templates found.' %}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Partial Templates -->
+        <div class="dashboard-card">
+            <h2>{% trans 'Partial Templates' %}</h2>
+            <div class="object-tools">
+                <a href="{% url 'admin:templates_template_add' %}?type=partial" class="addlink">
+                    {% trans 'Add Partial Template' %}
+                </a>
+            </div>
+            
+            {% if partial_templates %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans 'Name' %}</th>
+                        <th>{% trans 'Last Updated' %}</th>
+                        <th>{% trans 'Actions' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in partial_templates %}
+                    <tr>
+                        <td>{{ template.name }}</td>
+                        <td>{{ template.updated_at|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'admin:templates_template_change' template.id %}" class="button">Edit</a>
+                            <a href="{% url 'templates:preview' template.id %}" class="button" target="_blank">Preview</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{% trans 'No partial templates found.' %}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}  

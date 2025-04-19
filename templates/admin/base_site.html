@@ -1,0 +1,121 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --primary: #2c3e50;
+        --secondary: #1abc9c;
+        --accent: #3498db;
+        --primary-fg: #fff;
+        --body-fg: #333;
+        --body-bg: #f8f9fa;
+        --darkened-bg: #e9ecef;
+    }
+    
+    #header {
+        background: var(--primary);
+        color: var(--primary-fg);
+    }
+    
+    .module h2, .module caption, .inline-group h2 {
+        background: var(--primary);
+    }
+    
+    div.breadcrumbs {
+        background: var(--secondary);
+    }
+    
+    .button, input[type=submit], input[type=button], .submit-row input, a.button {
+        background: var(--primary);
+    }
+    
+    .button:hover, input[type=submit]:hover, input[type=button]:hover,
+    .submit-row input:hover, a.button:hover {
+        background: var(--secondary);
+    }
+    
+    .button.default, input[type=submit].default, .submit-row input.default {
+        background: var(--secondary);
+    }
+    
+    .button.default:hover, input[type=submit].default:hover, .submit-row input.default:hover {
+        background: var(--accent);
+    }
+    
+    /* Custom dashboard styles */
+    .dashboard-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+    
+    .dashboard-section h3 {
+        margin-top: 0;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+        font-size: 1.2em;
+        color: var(--primary);
+    }
+    
+    .app-group {
+        margin-bottom: 20px;
+    }
+    
+    .app-group h2 {
+        background: var(--primary);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px 4px 0 0;
+        margin: 0;
+        font-size: 14px;
+    }
+    
+    .app-group .app-items {
+        border: 1px solid #ddd;
+        border-top: none;
+        padding: 10px;
+        background: white;
+        border-radius: 0 0 4px 4px;
+    }
+    
+    /* Make Django admin more responsive for smaller screens */
+    @media (max-width: 1024px) {
+        #container {
+            padding: 0 15px;
+        }
+    }
+    
+    @media (max-width: 767px) {
+        #header {
+            flex-direction: column;
+            padding: 15px 30px 15px 15px;
+        }
+        
+        #user-tools {
+            margin-top: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">
+        {{ site_header|default:_('Django administration') }}
+    </a>
+</h1>
+{% endblock %}
+
+{% block welcome-msg %}
+    <strong>{% firstof user.get_short_name user.get_username %}</strong> | 
+    <a href="/" target="_blank">View Site</a>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

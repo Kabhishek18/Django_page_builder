@@ -1,0 +1,55 @@
+<!-- themes/preview.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
+    <a href="{% url 'themes:dashboard' %}">{% trans 'Templates' %}</a> &rsaquo;
+    {% trans 'Preview' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans 'Template Preview' %}: {{ template.name }}</h1>
+    
+    <div class="module">
+        <div style="display: flex; margin-bottom: 20px;">
+            <a href="{% url 'themes:edit_template' template.id %}" class="button">{% trans 'Edit Template' %}</a>
+            <a href="{% url 'themes:dashboard' %}" class="button" style="margin-left: 10px;">{% trans 'Back to Dashboard' %}</a>
+        </div>
+        
+        <h2>{% trans 'Template Information' %}</h2>
+        <table>
+            <tr>
+                <th>{% trans 'Name' %}</th>
+                <td>{{ template.name }}</td>
+            </tr>
+            <tr>
+                <th>{% trans 'Type' %}</th>
+                <td>{{ template.get_type_display }}</td>
+            </tr>
+            <tr>
+                <th>{% trans 'Description' %}</th>
+                <td>{{ template.description|default:"-" }}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="module">
+        <h2>{% trans 'Raw Template' %}</h2>
+        <div style="background-color: #f8f8f8; padding: 15px; border: 1px solid #ddd; overflow: auto; max-height: 300px;">
+            <pre style="margin: 0; white-space: pre-wrap;"><code>{{ raw_template }}</code></pre>
+        </div>
+    </div>
+    
+    <div class="module">
+        <h2>{% trans 'Rendered Preview' %}</h2>
+        <div class="template-preview" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 20px;">
+            {{ html|safe }}
+        </div>
+        <p class="help">{% trans 'Note: This preview uses sample data. Actual rendering may vary.' %}</p>
+    </div>
+</div>
+{% endblock %}

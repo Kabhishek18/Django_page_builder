@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="page-title mb-4">{{ page.title }}</h1>
+        </div>
+    </div>
+
+    {% for block in blocks %}
+        {% include block.get_template with block=block %}
+    {% empty %}
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    No content blocks found for this page.
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

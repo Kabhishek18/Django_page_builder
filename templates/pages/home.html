@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% for block in blocks %}
+        {% include block.get_template with block=block %}
+    {% empty %}
+        <div class="container">
+            <div class="row py-5 my-5 text-center">
+                <div class="col-md-8 mx-auto">
+                    <h1 class="display-4">Welcome to {{ site_settings.site_title|default:"My Portfolio" }}</h1>
+                    <p class="lead">
+                        {{ site_settings.site_description|default:"This is a default homepage. Create blocks to customize this page." }}
+                    </p>
+                    <div class="mt-4">
+                        <a href="/admin/pagebuilder/page/" class="btn btn-primary">Edit This Page</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}

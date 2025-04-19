@@ -1,0 +1,116 @@
+<!-- themes/import_template.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
+    <a href="{% url 'themes:dashboard' %}">{% trans 'Templates' %}</a> &rsaquo;
+    {% trans 'Import Template' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans 'Import Template' %}</h1>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_name">{% trans 'Name' %}:</label>
+                    <input type="text" name="name" id="id_name" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_slug">{% trans 'Slug' %}:</label>
+                    <input type="text" name="slug" id="id_slug" required>
+                    <p class="help">{% trans 'Used in template references. Can only contain letters, numbers, underscores or hyphens.' %}</p>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_type">{% trans 'Type' %}:</label>
+                    <select name="type" id="id_type">
+                        <option value="page">{% trans 'Page Template' %}</option>
+                        <option value="block">{% trans 'Block Template' %}</option>
+                        <option value="partial">{% trans 'Partial Template' %}</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_description">{% trans 'Description' %}:</label>
+                    <textarea name="description" id="id_description" rows="3"></textarea>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="id_template_file">{% trans 'Template File' %}:</label>
+                    <input type="file" name="template_file" id="id_template_file" required>
+                    <p class="help">{% trans 'Upload an HTML file containing the template content.' %}</p>
+                </div>
+            </div>
+        </fieldset>
+        
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Import' %}" class="default">
+            <a href="{% url 'themes:dashboard' %}" class="button">{% trans 'Cancel' %}</a>
+        </div>
+    </form>
+</div>
+
+<script>
+(function($) {
+    $(document).ready(function() {
+        // Auto-generate slug from name
+        $('#id_name').on('change keyup', function() {
+            if ($('#id_slug').val() === '') {
+                var nameValue = $(this).val();
+                var slugValue = nameValue.toLowerCase()
+                    .replace(/\s+/g, '-')           // Replace spaces with -
+                    .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+                    .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+                    .replace(/^-+/, '')             // Trim - from start of text
+                    .replace(/-+$/, '');            // Trim - from end of text
+                $('#id_slug').val(slugValue);
+            }
+        });
+        
+        // Auto-detect template type from file name
+        $('#id_template_file').on('change', function() {
+            var filename = $(this).val().split('\\').pop().toLowerCase();
+            var nameWithoutExt = filename.replace(/\.html$/, '');
+            
+            // If name field is empty, populate it
+            if ($('#id_name').val() === '') {
+                // Convert to title case (capitalize first letter of each word)
+                var titleCaseName = nameWithoutExt.replace(/-|_/g, ' ')
+                    .replace(/\b\w/g, function(l) { return l.toUpperCase() });
+                
+                $('#id_name').val(titleCaseName);
+                
+                // Also generate slug
+                $('#id_name').trigger('change');
+            }
+            
+            // Try to guess the template type
+            if (filename.indexOf('page') !== -1 || filename.indexOf('template') !== -1) {
+                $('#id_type').val('page');
+            } else if (filename.indexOf('block') !== -1) {
+                $('#id_type').val('block');
+            } else if (filename.indexOf('partial') !== -1) {
+                $('#id_type').val('partial');
+            }
+        });
+    });
+})(django.jQuery);
+</script>
+{% endblock %}
