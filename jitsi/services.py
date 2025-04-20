@@ -29,12 +29,12 @@ def generate_jwt_token(domain, app_id, app_secret, room_name, user_id, user_name
     
     payload = {
         'iss': app_id,
-        'aud': 'jitsi',
-        'sub': domain,
+        'aud': 'jitsi',  # Make sure this matches the JWT_ACCEPTED_AUDIENCES in Jitsi config
+        'sub': domain,   # Make sure this matches with your Jitsi domain
         'exp': expiry_time,
         'nbf': now,
         'iat': now,
-        'room': room_name,
+        'room': room_name,  # Using room ID consistently
         'context': {
             'user': {
                 'id': user_id,
@@ -284,3 +284,89 @@ def generate_iframe_api_config(meeting, user_name, is_moderator=False):
     }
     
     return options
+
+def get_absolute_logo_url(request, logo_url):
+    """
+    Converts a relative logo URL to an absolute URL that can be accessed by Jitsi.
+    
+    Args:
+        request: The HTTP request object
+        logo_url: The relative URL of the logo
+        
+    Returns:
+        str: The absolute URL of the logo
+    """
+    if not logo_url:
+        return None
+        
+    # If it's already an absolute URL (starts with http), return as is
+    if logo_url.startswith(('http://', 'https://')):
+        return logo_url
+        
+    # Otherwise, construct absolute URL from the request
+    return '{0}://{1}{2}'.format(
+        request.scheme,
+        request.get_host(),
+        logo_url
+    )
+
+def prepare_logo_config(request, meeting, default_logo=None):
+    """
+    Prepares logo configuration for Jitsi meeting.
+    
+    Args:
+        request: The HTTP request object
+        meeting: The JitsiMeeting instance
+        default_logo: Optional default logo URL to use if no customization is found
+        
+    Returns:
+        dict: Logo configuration dictionary for Jitsi
+    """
+    logo_url = None
+    
+    # Try to get logo from meeting customization
+    if meeting and meeting.customization and meeting.customization.logo:
+        try:
+            logo_url = meeting.customization.logo.url
+        except:
+            print("Error accessing logo URL from customization")
+    
+    # Use default logo if no logo found
+    if not logo_url:
+        logo_url = default_logo
+        
+    # Convert to absolute URL if we have a logo
+    if logo_url:
+        absolute_url = get_absolute_logo_url(request, logo_url)
+        
+        # Return configuration
+        return {
+            "brandingDataUrl": absolute_url,
+            "watermark": {
+                "display": True,
+                "showJitsiWatermark": False,
+                "showCustomWatermark": True,
+                "customWatermarkLink": "",
+                "customWatermarkPath": absolute_url
+            },
+            "defaultLogoUrl": absolute_url,
+            "logoImageUrl": absolute_url,
+            "interfaceConfig": {
+                "DEFAULT_LOGO_URL": absolute_url,
+                "SHOW_BRAND_WATERMARK": True,
+                "BRAND_WATERMARK_URL": absolute_url
+            }
+        }
+    
+    # Return empty config if no logo is available
+    return {
+        "watermark": {
+            "display": False,
+            "showJitsiWatermark": False,
+            "showCustomWatermark": False
+        },
+        "interfaceConfig": {
+            "SHOW_BRAND_WATERMARK": False,
+            "SHOW_JITSI_WATERMARK": False
+        }
+    }
