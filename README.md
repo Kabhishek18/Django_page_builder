@@ -26,8 +26,8 @@ A powerful Django-based content management system with an intuitive block-based 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/kabhishek18/kabhishek-portfolio.git
-cd kabhishek-portfolio
+git clone https://github.com/Kabhishek18/Django_page_builder
+cd Django_page_builder
 ```
 
 ### 2. Set Up Virtual Environment
