@@ -3,369 +3,55 @@
 
 {% block jitsi_title %}Customize Meeting - {{ room.name }}{% endblock %}
 
-{% block jitsi_extra_head %}
-    <link rel="stylesheet" href="{% static 'jitsi/css/customize_meeting.css' %}">
-{% endblock %}
-
-{% block page_title %}Customize Meeting{% endblock %}
-
-{% block page_actions %}
-    <a href="{% url 'jitsi:room_detail' room_id=room.id %}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> Back to Meeting
-    </a>
-{% endblock %}
-
 {% block jitsi_content %}
-    <div class="customize-meeting-container">
-        <div class="customize-meeting-header">
-            <h3>{{ room.name }} - Customization</h3>
+<div class="customize-meeting-container">
+    <div class="card">
+        <div class="card-header">
+            <h3>Customize Meeting Settings</h3>
         </div>
-        
-        <div class="customize-tabs">
-            <div class="tabs">
-                <div class="tab active" data-tab="branding">Branding</div>
-                <div class="tab" data-tab="features">Features</div>
-                <div class="tab" data-tab="advanced">Advanced</div>
-            </div>
-            
-            <form method="post" enctype="multipart/form-data">
+        <div class="card-body">
+            <form method="post">
                 {% csrf_token %}
                 
-                <div class="tab-content active" data-tab="branding">
-                    <h4>Meeting Branding</h4>
-                    <p class="text-muted">Customize the appearance of your Jitsi meeting.</p>
-                    
-                    <!-- Customization Name -->
-                    <div class="form-group">
-                        <label for="{{ customization_form.name.id_for_label }}" class="form-label">Customization Name</label>
-                        {{ customization_form.name.errors }}
-                        <input type="text" name="{{ customization_form.name.name }}" id="{{ customization_form.name.id_for_label }}" 
-                               class="form-control {% if customization_form.name.errors %}is-invalid{% endif %}" 
-                               value="{{ customization_form.name.value|default:'My Customization' }}" required>
+                <div class="form-group">
+                    <label for="meeting_name">Meeting Name</label>
+                    <input type="text" class="form-control" id="meeting_name" name="meeting_name" value="{{ room.name }}">
+                </div>
+
+                <div class="form-group">
+                    <label>Meeting Options</label>
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="enable_chat" name="enable_chat" {% if room.enable_chat %}checked{% endif %}>
+                        <label class="custom-control-label" for="enable_chat">Enable Chat</label>
                     </div>
                     
-                    <!-- Logo Upload -->
-                    <div class="form-group">
-                        <label for="{{ customization_form.logo.id_for_label }}" class="form-label">Meeting Logo</label>
-                        {{ customization_form.logo.errors }}
-                        
-                        <input type="file" name="{{ customization_form.logo.name }}" id="{{ customization_form.logo.id_for_label }}" 
-                               class="form-control {% if customization_form.logo.errors %}is-invalid{% endif %}" 
-                               accept="image/*">
-                        
-                        {% if customization_form.logo.help_text %}
-                            <div class="form-text">{{ customization_form.logo.help_text }}</div>
-                        {% endif %}
-                        
-                        {% if meeting.customization.logo %}
-                            <div class="preview-container">
-                                <p class="label">Current Logo:</p>
-                                <img src="{{ meeting.customization.logo.url }}" alt="Logo" class="logo-preview">
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Background Image -->
-                    <div class="form-group">
-                        <label for="{{ customization_form.background_image.id_for_label }}" class="form-label">Background Image</label>
-                        {{ customization_form.background_image.errors }}
-                        
-                        <input type="file" name="{{ customization_form.background_image.name }}" 
-                               id="{{ customization_form.background_image.id_for_label }}" 
-                               class="form-control {% if customization_form.background_image.errors %}is-invalid{% endif %}" 
-                               accept="image/*">
-                        
-                        {% if customization_form.background_image.help_text %}
-                            <div class="form-text">{{ customization_form.background_image.help_text }}</div>
-                        {% endif %}
-                        
-                        {% if meeting.customization.background_image %}
-                            <div class="preview-container">
-                                <p class="label">Current Background:</p>
-                                <img src="{{ meeting.customization.background_image.url }}" alt="Background" class="background-preview">
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Colors -->
-                    <div class="form-row">
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="{{ customization_form.primary_color.id_for_label }}" class="form-label">Primary Color</label>
-                                <div class="color-input-wrapper">
-                                    {{ customization_form.primary_color.errors }}
-                                    <input type="color" name="{{ customization_form.primary_color.name }}" 
-                                           id="{{ customization_form.primary_color.id_for_label }}" 
-                                           class="form-control-color {% if customization_form.primary_color.errors %}is-invalid{% endif %}" 
-                                           value="{{ customization_form.primary_color.value|default:'#0056E0' }}">
-                                    <span class="color-value">{{ customization_form.primary_color.value|default:"#0056E0" }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="{{ customization_form.secondary_color.id_for_label }}" class="form-label">Secondary Color</label>
-                                <div class="color-input-wrapper">
-                                    {{ customization_form.secondary_color.errors }}
-                                    <input type="color" name="{{ customization_form.secondary_color.name }}" 
-                                           id="{{ customization_form.secondary_color.id_for_label }}" 
-                                           class="form-control-color {% if customization_form.secondary_color.errors %}is-invalid{% endif %}" 
-                                           value="{{ customization_form.secondary_color.value|default:'#17A0DB' }}">
-                                    <span class="color-value">{{ customization_form.secondary_color.value|default:"#17A0DB" }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="{{ customization_form.background_color.id_for_label }}" class="form-label">Background Color</label>
-                                <div class="color-input-wrapper">
-                                    {{ customization_form.background_color.errors }}
-                                    <input type="color" name="{{ customization_form.background_color.name }}" 
-                                           id="{{ customization_form.background_color.id_for_label }}" 
-                                           class="form-control-color {% if customization_form.background_color.errors %}is-invalid{% endif %}" 
-                                           value="{{ customization_form.background_color.value|default:'#040404' }}">
-                                    <span class="color-value">{{ customization_form.background_color.value|default:"#040404" }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Footer -->
-                    <div class="form-group">
-                        <div class="form-switch">
-                            {{ customization_form.show_footer.errors }}
-                            <input type="checkbox" name="{{ customization_form.show_footer.name }}" 
-                                   id="{{ customization_form.show_footer.id_for_label }}" 
-                                   class="form-check-input {% if customization_form.show_footer.errors %}is-invalid{% endif %}" 
-                                   {% if customization_form.show_footer.value %}checked{% endif %}>
-                            <label for="{{ customization_form.show_footer.id_for_label }}" class="form-check-label">Show Footer</label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="{{ customization_form.footer_text.id_for_label }}" class="form-label">Footer Text</label>
-                        {{ customization_form.footer_text.errors }}
-                        <input type="text" name="{{ customization_form.footer_text.name }}" 
-                               id="{{ customization_form.footer_text.id_for_label }}" 
-                               class="form-control {% if customization_form.footer_text.errors %}is-invalid{% endif %}" 
-                               value="{{ customization_form.footer_text.value|default:'' }}">
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="enable_recording" name="enable_recording" {% if room.enable_recording %}checked{% endif %}>
+                        <label class="custom-control-label" for="enable_recording">Enable Recording</label>
                     </div>
                 </div>
-                
-                <div class="tab-content" data-tab="features">
-                    <h4>Meeting Features</h4>
-                    <p class="text-muted">Enable or disable specific features for your meeting.</p>
-                    
-                    <!-- Feature Config Name -->
-                    <div class="form-group">
-                        <label for="{{ feature_form.name.id_for_label }}" class="form-label">Configuration Name</label>
-                        {{ feature_form.name.errors }}
-                        <input type="text" name="{{ feature_form.name.name }}" id="{{ feature_form.name.id_for_label }}" 
-                               class="form-control {% if feature_form.name.errors %}is-invalid{% endif %}" 
-                               value="{{ feature_form.name.value|default:'My Feature Config' }}" required>
-                    </div>
-                    
-                    <!-- Core Features -->
-                    <div class="feature-group">
-                        <div class="feature-title">Core Features</div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_audio.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_audio.name }}" 
-                                       id="{{ feature_form.enable_audio.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_audio.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_audio.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_audio.id_for_label }}" class="form-check-label">Enable Audio</label>
-                                <div class="feature-description">{{ feature_form.enable_audio.help_text }}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_video.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_video.name }}" 
-                                       id="{{ feature_form.enable_video.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_video.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_video.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_video.id_for_label }}" class="form-check-label">Enable Video</label>
-                                <div class="feature-description">{{ feature_form.enable_video.help_text }}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_chat.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_chat.name }}" 
-                                       id="{{ feature_form.enable_chat.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_chat.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_chat.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_chat.id_for_label }}" class="form-check-label">Enable Chat</label>
-                                <div class="feature-description">Allow text chat during the meeting</div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_screen_sharing.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_screen_sharing.name }}" 
-                                       id="{{ feature_form.enable_screen_sharing.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_screen_sharing.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_screen_sharing.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_screen_sharing.id_for_label }}" class="form-check-label">Enable Screen Sharing</label>
-                                <div class="feature-description">Allow participants to share their screen</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Advanced Features -->
-                    <div class="feature-group">
-                        <div class="feature-title">Advanced Features</div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_recording.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_recording.name }}" 
-                                       id="{{ feature_form.enable_recording.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_recording.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_recording.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_recording.id_for_label }}" class="form-check-label">Enable Recording</label>
-                                <div class="feature-description">{{ feature_form.enable_recording.help_text }}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_livestreaming.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_livestreaming.name }}" 
-                                       id="{{ feature_form.enable_livestreaming.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_livestreaming.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_livestreaming.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_livestreaming.id_for_label }}" class="form-check-label">Enable Live Streaming</label>
-                                <div class="feature-description">{{ feature_form.enable_livestreaming.help_text }}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_breakout_rooms.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_breakout_rooms.name }}" 
-                                       id="{{ feature_form.enable_breakout_rooms.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_breakout_rooms.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_breakout_rooms.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_breakout_rooms.id_for_label }}" class="form-check-label">Enable Breakout Rooms</label>
-                                <div class="feature-description">Allow creating separate rooms for group discussions</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Security Features -->
-                    <div class="feature-group">
-                        <div class="feature-title">Security Features</div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_lobby.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_lobby.name }}" 
-                                       id="{{ feature_form.enable_lobby.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_lobby.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_lobby.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_lobby.id_for_label }}" class="form-check-label">Enable Lobby</label>
-                                <div class="feature-description">Participants must be approved before joining</div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <div class="form-switch">
-                                {{ feature_form.enable_end_to_end_encryption.errors }}
-                                <input type="checkbox" name="{{ feature_form.enable_end_to_end_encryption.name }}" 
-                                       id="{{ feature_form.enable_end_to_end_encryption.id_for_label }}" 
-                                       class="form-check-input {% if feature_form.enable_end_to_end_encryption.errors %}is-invalid{% endif %}" 
-                                       {% if feature_form.enable_end_to_end_encryption.value %}checked{% endif %}>
-                                <label for="{{ feature_form.enable_end_to_end_encryption.id_for_label }}" class="form-check-label">Enable End-to-End Encryption</label>
-                                <div class="feature-description">Secure communication with end-to-end encryption</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="tab-content" data-tab="advanced">
-                    <h4>Advanced Customization</h4>
-                    <p class="text-muted">Add custom CSS and JavaScript to further customize your Jitsi meeting.</p>
-                    
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i> Advanced settings should only be used if you're familiar with CSS and JavaScript.
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="{{ customization_form.custom_css.id_for_label }}" class="form-label">Custom CSS</label>
-                        {{ customization_form.custom_css.errors }}
-                        <textarea name="{{ customization_form.custom_css.name }}" id="{{ customization_form.custom_css.id_for_label }}" 
-                                  class="form-control code-editor {% if customization_form.custom_css.errors %}is-invalid{% endif %}" 
-                                  rows="8">{{ customization_form.custom_css.value|default:'' }}</textarea>
-                        {% if customization_form.custom_css.help_text %}
-                            <div class="form-text">{{ customization_form.custom_css.help_text }}</div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="{{ customization_form.custom_js.id_for_label }}" class="form-label">Custom JavaScript</label>
-                        {{ customization_form.custom_js.errors }}
-                        <textarea name="{{ customization_form.custom_js.name }}" id="{{ customization_form.custom_js.id_for_label }}" 
-                                  class="form-control code-editor {% if customization_form.custom_js.errors %}is-invalid{% endif %}" 
-                                  rows="8">{{ customization_form.custom_js.value|default:'' }}</textarea>
-                        {% if customization_form.custom_js.help_text %}
-                            <div class="form-text">{{ customization_form.custom_js.help_text }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="form-actions">
+
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                     <a href="{% url 'jitsi:room_detail' room_id=room.id %}" class="btn btn-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Save Customization
-                    </button>
                 </div>
             </form>
         </div>
     </div>
+</div>
 {% endblock %}
 
-{% block jitsi_extra_js %}
-    <script src="{% static 'jitsi/js/customize_meeting.js' %}"></script>
-    <script>
-        // Initialize tabs
-        document.addEventListener('DOMContentLoaded', function() {
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', function() {
-                    // Deactivate all tabs
-                    tabs.forEach(t => t.classList.remove('active'));
-                    
-                    // Deactivate all tab content
-                    document.querySelectorAll('.tab-content').forEach(content => {
-                        content.classList.remove('active');
-                    });
-                    
-                    // Activate clicked tab
-                    this.classList.add('active');
-                    
-                    // Activate corresponding tab content
-                    const tabId = this.getAttribute('data-tab');
-                    document.querySelector(`.tab-content[data-tab="${tabId}"]`).classList.add('active');
-                });
-            });
-            
-            // Initialize color input displays
-            const colorInputs = document.querySelectorAll('input[type="color"]');
-            colorInputs.forEach(input => {
-                input.addEventListener('input', function() {
-                    const valueSpan = this.nextElementSibling;
-                    valueSpan.textContent = this.value;
-                });
-            });
-        });
-    </script>
+{% block jitsi_extra_css %}
+<style>
+    .customize-meeting-container {
+        max-width: 800px;
+        margin: 2rem auto;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .custom-control {
+        margin-bottom: 0.5rem;
+    }
+</style>
 {% endblock %}

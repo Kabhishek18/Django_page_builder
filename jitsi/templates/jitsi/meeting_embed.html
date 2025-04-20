@@ -98,11 +98,34 @@
         document.addEventListener('DOMContentLoaded', function() {
             const domain = "{{ domain }}";
             const options = {
-                roomName: "{{ room_name }}",
+                roomName: "{{ room.id }}",  // Use room ID for the actual room
                 width: "100%",
                 height: "100%",
                 parentNode: document.getElementById('jitsi-container'),
-                configOverwrite: {{ config|safe }},
+                configOverwrite: {
+                    ...{{ config|safe }},
+                    // Meeting display name settings
+                    subject: "{{ room.name|escapejs }}",  // Show room name in the UI
+                    roomDisplayName: "{{ room.name|escapejs }}",  // Display room name
+                    // Custom logo settings
+                    disableBrandWatermark: false,
+                    brandingDataUrl: "{{ meeting.customization.logo.url|default:'' }}",
+                    watermark: {
+                        display: true,
+                        showJitsiWatermark: false,
+                        showCustomWatermark: true,
+                        customWatermarkLink: '',
+                        customWatermarkPath: "{{ meeting.customization.logo.url|default:'' }}" 
+                    }
+                },
+                interfaceConfigOverwrite: {
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_WATERMARK_FOR_GUESTS: true,
+                    DEFAULT_LOGO_URL: "{{ meeting.customization.logo.url|default:'' }}",
+                    SHOW_BRAND_WATERMARK: true,
+                    BRAND_WATERMARK_LINK: '',
+                    BRAND_WATERMARK_URL: "{{ meeting.customization.logo.url|default:'' }}"
+                },
                 userInfo: {
                     displayName: "{{ user_info.displayName|escapejs }}",
                     email: "{{ user_info.email|escapejs }}"
