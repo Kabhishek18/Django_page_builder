@@ -1,0 +1,251 @@
+{% extends "./base.html" %}
+{% load static %}
+{% block jitsi_extra_head %}
+    <link rel="stylesheet" href="{% static 'jitsi/css/join_meeting.css' %}">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        .jitsi-app-container {
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .jitsi-content {
+            height: calc(100vh - 60px);
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .main-content {
+            height: 100%;
+            padding: 0;
+            box-shadow: none;
+            border-radius: 0;
+            background: transparent;
+        }
+        
+        #jitsi-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .toggle-sidebar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #e0e0e0;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        
+        .meeting-sidebar {
+            width: 320px;
+            background-color: #fff;
+            border-left: 1px solid #e0e0e0;
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            z-index: 90;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        .meeting-sidebar.show {
+            transform: translateX(0);
+        }
+        
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #6c757d;
+        }
+        
+        .sidebar-content {
+            padding: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .meeting-sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block jitsi_content %}
+    <div id="jitsi-container"></div>
+    
+    <button class="toggle-sidebar" onclick="toggleSidebar()">
+        <i class="fas fa-info-circle"></i>
+    </button>
+    
+    <div class="meeting-sidebar" id="meeting-sidebar">
+        <div class="sidebar-header">
+            <h4>Meeting Info</h4>
+            <button class="sidebar-close" onclick="toggleSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="sidebar-content">
+            <h5>{{ room.name }}</h5>
+            {% if room.description %}
+                <p>{{ room.description }}</p>
+            {% endif %}
+            
+            <hr>
+            
+            <h6>Share Meeting</h6>
+            <div class="meeting-link-container">
+                <div class="meeting-link" id="meeting-link">{{ request.scheme }}://{{ request.get_host }}{% url 'jitsi:join_meeting' room_id=room.id %}</div>
+                <button class="btn btn-sm btn-primary copy-to-clipboard" data-copy-target="meeting-link">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+            
+            {% if is_host %}
+                <hr>
+                <h6>Host Controls</h6>
+                <div class="host-controls">
+                    <button class="btn btn-danger" onclick="endMeeting()">
+                        <i class="fas fa-phone-slash"></i> End Meeting
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block jitsi_extra_js %}
+    <script src="https://{{ domain }}/external_api.js"></script>
+    <script>
+        // Initialize Jitsi Meet API
+        document.addEventListener('DOMContentLoaded', function() {
+            const domain = "{{ domain }}";
+            const options = {
+                roomName: "{{ room_name }}",
+                width: "100%",
+                height: "100%",
+                parentNode: document.getElementById('jitsi-container'),
+                configOverwrite: {
+                    ...{{ config|safe }},
+                    disableDeepLinking: true,
+                    // Remove Jitsi watermark/logo
+                    disableThirdPartyRequests: true,
+                    brandingRoomAlias: false,
+                    // Custom branding settings
+                    customToolbarButtons: [],
+                    // Disable Jitsi's branding
+                    disableBrandWatermark: true,
+                    watermark: {
+                        display: false,
+                        showJitsiWatermark: false,
+                        showCustomWatermark: true,
+                        customWatermarkLink: '', // No link on custom logo
+                        customWatermarkPath: "{% static 'images/your_logo.png' %}" // Path to your logo
+                    },
+                    // Interface configurations
+                    defaultLogoUrl: "{% static 'images/your_logo.png' %}",
+                    logoClickUrl: '',
+                    logoImageUrl: "{% static 'images/your_logo.png' %}"
+                },
+                interfaceConfigOverwrite: {
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_WATERMARK_FOR_GUESTS: false,
+                    DEFAULT_BACKGROUND: '#ffffff',
+                    DEFAULT_LOGO_URL: "{% static 'images/your_logo.png' %}",
+                    HIDE_INVITE_MORE_HEADER: true
+                },
+                userInfo: {
+                    displayName: "{{ user_info.displayName|escapejs }}",
+                    email: "{{ user_info.email|escapejs }}"
+                },
+                jwt: "{{ token }}"
+            };
+            
+            const api = new JitsiMeetExternalAPI(domain, options);
+            
+            // Event listeners
+            api.addEventListeners({
+                videoConferenceJoined: function() {
+                    console.log('Joined the meeting');
+                },
+                videoConferenceLeft: function() {
+                    console.log('Left the meeting');
+                    // Redirect to room detail page after leaving
+                    window.location.href = "{% url 'jitsi:room_detail' room_id=room.id %}";
+                },
+                participantJoined: function(participant) {
+                    console.log('Participant joined:', participant);
+                },
+                participantLeft: function(participant) {
+                    console.log('Participant left:', participant);
+                },
+                readyToClose: function() {
+                    window.location.href = "{% url 'jitsi:room_detail' room_id=room.id %}";
+                }
+            });
+            
+            // Make API available globally for function access
+            window.jitsiApi = api;
+        });
+        
+        // Toggle sidebar visibility
+        function toggleSidebar() {
+            const sidebar = document.getElementById('meeting-sidebar');
+            sidebar.classList.toggle('show');
+        }
+        
+        // End meeting function for hosts
+        function endMeeting() {
+            if (confirm('Are you sure you want to end this meeting for all participants?')) {
+                // Call the hangup method from the Jitsi API
+                if (window.jitsiApi) {
+                    window.jitsiApi.executeCommand('hangup');
+                    
+                    // Make an AJAX call to end the meeting
+                    fetch("{% url 'jitsi:end_meeting' room_id=room.id %}", {
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        }
+                    }).then(response => {
+                        if (response.ok) {
+                            // Redirect to room detail page
+                            window.location.href = "{% url 'jitsi:room_detail' room_id=room.id %}";
+                        } else {
+                            console.error('Failed to end meeting');
+                        }
+                    }).catch(error => {
+                        console.error('Error ending meeting:', error);
+                    });
+                }
+            }
+        }
+    </script>
+{% endblock %}
