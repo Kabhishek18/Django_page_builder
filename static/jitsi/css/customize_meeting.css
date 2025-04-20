@@ -1,0 +1,196 @@
+/* customize_meeting.css - Specific styles for the meeting customization page */
+
+.customize-meeting-container {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.customize-meeting-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f8f9fa;
+}
+
+.customize-meeting-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.25rem;
+}
+
+.customize-tabs {
+    padding: 20px;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 20px;
+}
+
+.tab {
+    padding: 10px 15px;
+    cursor: pointer;
+    color: #495057;
+    border: 1px solid transparent;
+    margin-bottom: -1px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    font-weight: 500;
+}
+
+.tab:hover {
+    color: #495057;
+    border-color: #e9ecef #e9ecef #dee2e6;
+    background-color: #f8f9fa;
+}
+
+.tab.active {
+    color: #3498db;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.tab-content {
+    display: none;
+    padding: 10px 0;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-switch {
+    padding-left: 2.5em;
+    margin-bottom: 10px;
+}
+
+.form-switch .form-check-input {
+    margin-left: -2.5em;
+    width: 2em;
+    height: 1em;
+}
+
+.feature-group {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.feature-group:last-child {
+    border-bottom: none;
+}
+
+.feature-title {
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.feature-description {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 5px;
+    margin-left: 2.5em;
+}
+
+.preview-container {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.preview-container .label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.logo-preview {
+    max-height: 80px;
+    max-width: 100%;
+    background-color: #fff;
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid #e0e0e0;
+}
+
+.background-preview {
+    max-height: 150px;
+    max-width: 100%;
+    border-radius: 5px;
+    border: 1px solid #e0e0e0;
+}
+
+.color-input-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.form-control-color {
+    width: 50px;
+    height: 38px;
+    padding: 3px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.color-value {
+    margin-left: 10px;
+    font-family: monospace;
+    color: #495057;
+}
+
+.code-editor {
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    tab-size: 4;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+@media (max-width: 768px) {
+    .tabs {
+        flex-wrap: wrap;
+    }
+    
+    .tab {
+        flex-grow: 1;
+        text-align: center;
+    }
+    
+    .form-row {
+        flex-direction: column;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+    }
+}

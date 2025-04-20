@@ -1,0 +1,57 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block jitsi_title %}Customize Meeting - {{ room.name }}{% endblock %}
+
+{% block jitsi_content %}
+<div class="customize-meeting-container">
+    <div class="card">
+        <div class="card-header">
+            <h3>Customize Meeting Settings</h3>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="meeting_name">Meeting Name</label>
+                    <input type="text" class="form-control" id="meeting_name" name="meeting_name" value="{{ room.name }}">
+                </div>
+
+                <div class="form-group">
+                    <label>Meeting Options</label>
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="enable_chat" name="enable_chat" {% if room.enable_chat %}checked{% endif %}>
+                        <label class="custom-control-label" for="enable_chat">Enable Chat</label>
+                    </div>
+                    
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="enable_recording" name="enable_recording" {% if room.enable_recording %}checked{% endif %}>
+                        <label class="custom-control-label" for="enable_recording">Enable Recording</label>
+                    </div>
+                </div>
+
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a href="{% url 'jitsi:room_detail' room_id=room.id %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block jitsi_extra_css %}
+<style>
+    .customize-meeting-container {
+        max-width: 800px;
+        margin: 2rem auto;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .custom-control {
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}

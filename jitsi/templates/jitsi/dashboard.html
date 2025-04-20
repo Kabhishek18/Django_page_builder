@@ -1,0 +1,180 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block jitsi_title %}Meetings Dashboard{% endblock %}
+
+{% block jitsi_extra_head %}
+    <link rel="stylesheet" href="{% static 'jitsi/css/dashboard.css' %}">
+{% endblock %}
+
+{% block page_title %}Meetings Dashboard{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'jitsi:create_room' %}" class="btn btn-primary">
+        <i class="fas fa-plus-circle"></i> Create Meeting
+    </a>
+{% endblock %}
+
+{% block jitsi_content %}
+<div class="dashboard-container">
+    <!-- Active Meetings -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Active Meetings</h2>
+        </div>
+
+        {% if active_meetings %}
+            <div class="row">
+                {% for room in active_meetings %}
+                    <div class="col-md-6">
+                        <div class="room-card">
+                            <div class="room-card-header">
+                                <h3>{{ room.name }}</h3>
+                                <span class="badge badge-success">Active</span>
+                            </div>
+                            <div class="room-card-body">
+                                <p><strong>Started:</strong> {{ room.scheduled_at|date:"F j, Y, g:i a" }}</p>
+                                <p><strong>Host:</strong> {{ room.creator.get_full_name|default:room.creator.username }}</p>
+                                <p>
+                                    {% if room.description %}
+                                        {{ room.description|truncatewords:15 }}
+                                    {% else %}
+                                        <em>No description</em>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="room-card-footer">
+                                <a href="{% url 'jitsi:room_detail' room_id=room.id %}" class="btn btn-info btn-sm">
+                                    <i class="fas fa-info-circle"></i> Details
+                                </a>
+                                <a href="{% url 'jitsi:join_meeting' room_id=room.id %}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-video"></i> Join Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-video-slash"></i>
+                </div>
+                <h3>No Active Meetings</h3>
+                <p>There are no meetings currently in progress.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Upcoming Meetings -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Upcoming Meetings</h2>
+        </div>
+
+        {% if upcoming_meetings %}
+            <div class="row">
+                {% for room in upcoming_meetings %}
+                    <div class="col-md-6">
+                        <div class="room-card">
+                            <div class="room-card-header">
+                                <h3>{{ room.name }}</h3>
+                                <span class="badge badge-primary">Scheduled</span>
+                            </div>
+                            <div class="room-card-body">
+                                <p><strong>Scheduled for:</strong> {{ room.scheduled_at|date:"F j, Y, g:i a" }}</p>
+                                <p><strong>Host:</strong> {{ room.creator.get_full_name|default:room.creator.username }}</p>
+                                <p>
+                                    {% if room.description %}
+                                        {{ room.description|truncatewords:15 }}
+                                    {% else %}
+                                        <em>No description</em>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="room-card-footer">
+                                <a href="{% url 'jitsi:room_detail' room_id=room.id %}" class="btn btn-info btn-sm">
+                                    <i class="fas fa-info-circle"></i> Details
+                                </a>
+                                {% if room.creator == request.user %}
+                                    <a href="{% url 'jitsi:join_meeting' room_id=room.id %}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-play"></i> Start Meeting
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'jitsi:room_detail' room_id=room.id %}" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="far fa-calendar"></i>
+                </div>
+                <h3>No Upcoming Meetings</h3>
+                <p>You don't have any scheduled meetings coming up.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Past Meetings -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Past Meetings</h2>
+        </div>
+
+        {% if past_meetings %}
+            <div class="meetings-table-container">
+                <table class="meetings-table">
+                    <thead>
+                        <tr>
+                            <th>Meeting Name</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Host</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for room in past_meetings %}
+                            <tr data-status="{{ room.status }}">
+                                <td>{{ room.name }}</td>
+                                <td>
+                                    {% if room.status == 'completed' %}
+                                        <span class="badge badge-secondary">Completed</span>
+                                    {% elif room.status == 'cancelled' %}
+                                        <span class="badge badge-danger">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ room.scheduled_at|date:"M d, Y" }}</td>
+                                <td>{{ room.creator.get_full_name|default:room.creator.username }}</td>
+                                <td class="actions">
+                                    <a href="{% url 'jitsi:room_detail' room_id=room.id %}" class="btn btn-info btn-sm">
+                                        <i class="fas fa-info-circle"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h3>No Past Meetings</h3>
+                <p>You don't have any completed or cancelled meetings.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block jitsi_extra_js %}
+    <script src="{% static 'jitsi/js/dashboard.js' %}"></script>
+{% endblock %}
