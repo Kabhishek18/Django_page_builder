@@ -1,0 +1,266 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block jitsi_title %}{{ room.name }} - Details{% endblock %}
+
+{% block jitsi_extra_head %}
+    <link rel="stylesheet" href="{% static 'jitsi/css/room_detail.css' %}">
+{% endblock %}
+
+{% block page_title %}Meeting Details{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'jitsi:dashboard' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+{% endblock %}
+
+{% block jitsi_content %}
+    <div class="room-detail-container">
+        <!-- Meeting Information -->
+        <div class="room-card">
+            <div class="room-card-header">
+                <h3>{{ room.name }}</h3>
+                <span class="badge badge-{{ room.status }}">
+                    {{ room.get_status_display }}
+                </span>
+            </div>
+            
+            <div class="room-card-body">
+                {% if room.description %}
+                    <p>{{ room.description }}</p>
+                    <hr>
+                {% endif %}
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Scheduled for:</strong> {{ room.scheduled_at|date:"F j, Y, g:i a" }}</p>
+                        <p><strong>Host:</strong> {{ room.creator.get_full_name|default:room.creator.username }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ room.created_at|date:"F j, Y" }}</p>
+                        {% if room.ended_at %}
+                            <p><strong>Ended:</strong> {{ room.ended_at|date:"F j, Y, g:i a" }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Meeting Actions -->
+        <div class="room-card">
+            <div class="room-card-header">
+                <h3>Meeting Actions</h3>
+            </div>
+            <div class="room-card-body">
+                {% if room.status == 'scheduled' %}
+                    {% if is_creator %}
+                        <div class="action-buttons">
+                            <a href="{% url 'jitsi:join_meeting' room_id=room.id %}" class="btn btn-success">
+                                <i class="fas fa-play-circle"></i> Start Meeting
+                            </a>
+                            <a href="{% url 'jitsi:customize_meeting' room_id=room.id %}" class="btn btn-primary">
+                                <i class="fas fa-cog"></i> Customize Meeting
+                            </a>
+                            <button type="button" class="btn btn-danger" onclick="confirmCancel()">
+                                <i class="fas fa-times-circle"></i> Cancel Meeting
+                            </button>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> This meeting has not started yet. Check back at the scheduled time.
+                        </div>
+                    {% endif %}
+                {% elif room.status == 'active' %}
+                    <div class="action-buttons">
+                        <a href="{% url 'jitsi:join_meeting' room_id=room.id %}" class="btn btn-primary">
+                            <i class="fas fa-video"></i> Join Meeting
+                        </a>
+                        {% if is_creator %}
+                            <a href="{% url 'jitsi:customize_meeting' room_id=room.id %}" class="btn btn-secondary">
+                                <i class="fas fa-cog"></i> Meeting Settings
+                            </a>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-secondary">
+                        <i class="fas fa-info-circle"></i> This meeting has ended and is no longer available.
+                    </div>
+                    {% if is_creator %}
+                        <div class="action-buttons mt-3">
+                            <a href="{% url 'jitsi:create_room' %}" class="btn btn-primary">
+                                <i class="fas fa-plus-circle"></i> Create New Meeting
+                            </a>
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Share Information -->
+        <div class="room-card">
+            <div class="room-card-header">
+                <h3>Share This Meeting</h3>
+            </div>
+            <div class="room-card-body">
+                <p>Share the link below to invite others to this meeting:</p>
+                
+                <div class="meeting-link-container">
+                    <div class="meeting-link" id="meeting-link">{{ request.scheme }}://{{ request.get_host }}{% url 'jitsi:room_detail' room_id=room.id %}</div>
+                    <button class="btn btn-primary copy-to-clipboard" data-copy-target="meeting-link">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Security Information -->
+        <div class="room-card">
+            <div class="room-card-header">
+                <h3>Security Information</h3>
+            </div>
+            <div class="room-card-body">
+                <div class="security-info">
+                    <p>
+                        {% if room.is_public %}
+                            <span class="badge badge-warning">Public Meeting</span>
+                            <small class="d-block mt-2">Anyone with the link can join this meeting.</small>
+                        {% else %}
+                            <span class="badge badge-info">Private Meeting</span>
+                            <small class="d-block mt-2">Only invited participants can join this meeting.</small>
+                        {% endif %}
+                    </p>
+                    
+                    <p>
+                        {% if room.password_protected %}
+                            <span class="badge badge-success">Password Protected</span>
+                            {% if is_creator %}
+                                <div class="password-info">
+                                    <div><strong>Moderator Password:</strong> {{ room.moderator_password }}</div>
+                                    <div><strong>Attendee Password:</strong> {{ room.attendee_password }}</div>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge badge-secondary">No Password</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Meeting Configuration (if applicable) -->
+        {% if meeting %}
+            <div class="room-card">
+                <div class="room-card-header">
+                    <h3>Meeting Configuration</h3>
+                </div>
+                <div class="room-card-body">
+                    <div class="row">
+                        <!-- Customization -->
+                        <div class="col-md-6">
+                            <h4>Customization</h4>
+                            <ul class="feature-list">
+                                <li class="feature-item">
+                                    <span class="feature-name">Custom Branding</span>
+                                    {% if meeting.customization %}
+                                        <span class="badge badge-success">Enabled</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Default</span>
+                                    {% endif %}
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Features -->
+                        <div class="col-md-6">
+                            <h4>Features</h4>
+                            <ul class="feature-list">
+                                {% if meeting.feature_config %}
+                                    <li class="feature-item">
+                                        <span class="feature-name">Audio</span>
+                                        {% if meeting.feature_config.enable_audio %}
+                                            <span class="badge badge-success">Enabled</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">Disabled</span>
+                                        {% endif %}
+                                    </li>
+                                    <li class="feature-item">
+                                        <span class="feature-name">Video</span>
+                                        {% if meeting.feature_config.enable_video %}
+                                            <span class="badge badge-success">Enabled</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">Disabled</span>
+                                        {% endif %}
+                                    </li>
+                                    <li class="feature-item">
+                                        <span class="feature-name">Screen Sharing</span>
+                                        {% if meeting.feature_config.enable_screen_sharing %}
+                                            <span class="badge badge-success">Enabled</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">Disabled</span>
+                                        {% endif %}
+                                    </li>
+                                {% else %}
+                                    <li class="feature-item">Using default configuration</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Participants List (if any) -->
+        {% if room.participants.exists %}
+            <div class="room-card">
+                <div class="room-card-header">
+                    <h3>Participants</h3>
+                </div>
+                <div class="room-card-body">
+                    <ul class="participants-list">
+                        {% for participant in room.participants.all %}
+                            <li class="participant-item">
+                                <div class="participant-info">
+                                    <strong>{{ participant.name }}</strong>
+                                    {% if participant.role == 'moderator' %}
+                                        <span class="badge badge-primary">Moderator</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="participant-status">
+                                    {% if participant.left_at %}
+                                        <small class="text-muted">Left: {{ participant.left_at|time:"g:i a" }}</small>
+                                    {% else %}
+                                        <small class="status-active">Active</small>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Cancel Meeting Modal Form (hidden) -->
+    {% if room.status == 'scheduled' and is_creator %}
+        <form id="cancel-form" method="post" action="#" style="display: none;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="cancel">
+        </form>
+    {% endif %}
+{% endblock %}
+
+{% block jitsi_extra_js %}
+    <script src="{% static 'jitsi/js/room_detail.js' %}"></script>
+    <script>
+        function confirmCancel() {
+            jitsiUtils.confirmAction(
+                'Are you sure you want to cancel this meeting? This action cannot be undone.',
+                function() {
+                    document.getElementById('cancel-form').submit();
+                }
+            );
+        }
+    </script>
+{% endblock %}

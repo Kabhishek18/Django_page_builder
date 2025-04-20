@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'pagebuilder.apps.PagebuilderConfig',
     'themes.apps.ThemesConfig',
     'media.apps.MediaConfig',
+    'jitsi.apps.JitsiConfig',
 ]
 
 MIDDLEWARE = [
@@ -128,7 +129,11 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media_files')
-
+# Configure Jitsi settings
+# Jitsi Configuration for Docker installation
+JITSI_DOMAIN = 'localhost:8443'  # Change to your Docker Jitsi domain/port
+JITSI_APP_ID = 'jitsi'           # Default value that will work without JWT
+JITSI_APP_SECRET = 'secret'      # Default value that will work without JWT
 # If AWS credentials are provided, use S3 for static and media files
 # AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 # AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')

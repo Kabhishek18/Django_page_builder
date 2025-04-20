@@ -1,0 +1,119 @@
+/* embed.css - Styles for the embedded meeting view */
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#jitsi-container {
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+}
+
+.loading-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #fff;
+    z-index: 1000;
+    transition: opacity 0.5s ease;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    margin-top: 20px;
+    font-size: 16px;
+    color: #333;
+}
+
+.branding {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+}
+
+.branding img {
+    height: 40px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.branding img:hover {
+    opacity: 1;
+}
+
+.error-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #fff;
+    z-index: 900;
+    padding: 20px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 48px;
+    color: #e74c3c;
+    margin-bottom: 20px;
+}
+
+.error-title {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.error-message {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 20px;
+    max-width: 600px;
+}
+
+.action-button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #3498db;
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.action-button:hover {
+    background-color: #2980b9;
+}

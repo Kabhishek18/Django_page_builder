@@ -1,0 +1,160 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block jitsi_title %}Create Meeting{% endblock %}
+
+{% block jitsi_extra_head %}
+    <link rel="stylesheet" href="{% static 'jitsi/css/create_room.css' %}">
+{% endblock %}
+
+{% block page_title %}Create Meeting{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'jitsi:dashboard' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+{% endblock %}
+
+{% block jitsi_content %}
+    <div class="create-room-container">
+        <form method="post" class="create-room-form">
+            {% csrf_token %}
+            
+            <!-- Error Messages -->
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h3>Basic Information</h3>
+                
+                <div class="form-group">
+                    <label for="{{ form.name.id_for_label }}" class="form-label">Meeting Name</label>
+                    {{ form.name.errors }}
+                    <input type="text" name="{{ form.name.name }}" id="{{ form.name.id_for_label }}" 
+                           class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
+                           value="{{ form.name.value|default:'' }}" required>
+                    {% if form.name.help_text %}
+                        <div class="form-text">{{ form.name.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.description.id_for_label }}" class="form-label">Description (Optional)</label>
+                    {{ form.description.errors }}
+                    <textarea name="{{ form.description.name }}" id="{{ form.description.id_for_label }}" 
+                              class="form-control {% if form.description.errors %}is-invalid{% endif %}" 
+                              rows="3">{{ form.description.value|default:'' }}</textarea>
+                    {% if form.description.help_text %}
+                        <div class="form-text">{{ form.description.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.scheduled_at.id_for_label }}" class="form-label">Schedule Date and Time</label>
+                    {{ form.scheduled_at.errors }}
+                    <input type="datetime-local" name="{{ form.scheduled_at.name }}" id="{{ form.scheduled_at.id_for_label }}" 
+                           class="form-control {% if form.scheduled_at.errors %}is-invalid{% endif %}" 
+                           value="{{ form.scheduled_at.value|default:'' }}" required>
+                    {% if form.scheduled_at.help_text %}
+                        <div class="form-text">{{ form.scheduled_at.help_text }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Access Control -->
+            <div class="form-section">
+                <h3>Access Control</h3>
+                
+                <div class="form-check">
+                    {{ form.is_public.errors }}
+                    <input type="checkbox" name="{{ form.is_public.name }}" id="{{ form.is_public.id_for_label }}" 
+                           class="form-check-input {% if form.is_public.errors %}is-invalid{% endif %}" 
+                           {% if form.is_public.value %}checked{% endif %}>
+                    <label for="{{ form.is_public.id_for_label }}" class="form-check-label">Public Meeting</label>
+                    {% if form.is_public.help_text %}
+                        <div class="form-text">{{ form.is_public.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-check">
+                    {{ form.password_protected.errors }}
+                    <input type="checkbox" name="{{ form.password_protected.name }}" id="{{ form.password_protected.id_for_label }}" 
+                           class="form-check-input {% if form.password_protected.errors %}is-invalid{% endif %}" 
+                           {% if form.password_protected.value %}checked{% endif %} 
+                           onchange="togglePasswordFields(this.checked)">
+                    <label for="{{ form.password_protected.id_for_label }}" class="form-check-label">Password Protected</label>
+                    {% if form.password_protected.help_text %}
+                        <div class="form-text">{{ form.password_protected.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div id="password-fields" class="password-fields-container" style="display: {% if form.password_protected.value %}block{% else %}none{% endif %};">
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="{{ form.moderator_password.id_for_label }}" class="form-label">Moderator Password</label>
+                                {{ form.moderator_password.errors }}
+                                <input type="text" name="{{ form.moderator_password.name }}" id="{{ form.moderator_password.id_for_label }}" 
+                                       class="form-control {% if form.moderator_password.errors %}is-invalid{% endif %}" 
+                                       value="{{ form.moderator_password.value|default:'' }}">
+                                <div class="form-text">Password for meeting hosts/moderators</div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="{{ form.attendee_password.id_for_label }}" class="form-label">Attendee Password</label>
+                                {{ form.attendee_password.errors }}
+                                <input type="text" name="{{ form.attendee_password.name }}" id="{{ form.attendee_password.id_for_label }}" 
+                                       class="form-control {% if form.attendee_password.errors %}is-invalid{% endif %}" 
+                                       value="{{ form.attendee_password.value|default:'' }}">
+                                <div class="form-text">Password for regular participants</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus-circle"></i> Create Meeting
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block jitsi_extra_js %}
+    <script src="{% static 'jitsi/js/create_room.js' %}"></script>
+    <script>
+        // Toggle password fields based on checkbox
+        function togglePasswordFields(isChecked) {
+            const passwordFields = document.getElementById('password-fields');
+            passwordFields.style.display = isChecked ? 'block' : 'none';
+            
+            // Set required attribute based on checkbox state
+            const moderatorPassword = document.getElementById('{{ form.moderator_password.id_for_label }}');
+            const attendeePassword = document.getElementById('{{ form.attendee_password.id_for_label }}');
+            
+            if (isChecked) {
+                moderatorPassword.setAttribute('required', 'required');
+                attendeePassword.setAttribute('required', 'required');
+            } else {
+                moderatorPassword.removeAttribute('required');
+                attendeePassword.removeAttribute('required');
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordProtected = document.getElementById('{{ form.password_protected.id_for_label }}');
+            togglePasswordFields(passwordProtected.checked);
+        });
+    </script>
+{% endblock %}

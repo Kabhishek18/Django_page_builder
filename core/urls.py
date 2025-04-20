@@ -18,7 +18,7 @@ urlpatterns = [
     path('media-manager/', include('media.urls')),
     path('themes/', include('themes.urls')),
     path('admin/pagebuilder/', include('pagebuilder.urls', namespace='pagebuilder')),
-
+    path('meetings/', include('jitsi.urls')),
     
     # Main portfolio app - should be last as it handles dynamic pages
     path('', include('portfolio.urls')),
