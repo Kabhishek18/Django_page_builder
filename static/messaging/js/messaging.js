@@ -318,3 +318,417 @@ function handleFileSelect(event) {
 function getCsrfToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]').value;
 }
+
+/**
+ * messaging-utils.js - Utility functions for the messaging system
+ */
+
+const MessagingUtils = {
+    /**
+     * Format a timestamp as a relative time string (e.g., "2 hours ago")
+     * @param {string|Date} timestamp - The timestamp to format
+     * @returns {string} Formatted relative time
+     */
+    timeAgo: function(timestamp) {
+        if (!timestamp) return '';
+        
+        const now = new Date();
+        let date = timestamp;
+        
+        if (typeof timestamp === 'string') {
+            date = new Date(timestamp);
+        }
+        
+        const seconds = Math.floor((now - date) / 1000);
+        
+        // Less than a minute
+        if (seconds < 60) {
+            return 'Just now';
+        }
+        
+        // Minutes
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) {
+            return `${minutes}m ago`;
+        }
+        
+        // Hours
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) {
+            return `${hours}h ago`;
+        }
+        
+        // Days
+        const days = Math.floor(hours / 24);
+        if (days < 7) {
+            return `${days}d ago`;
+        }
+        
+        // Weeks
+        if (days < 30) {
+            const weeks = Math.floor(days / 7);
+            return `${weeks}w ago`;
+        }
+        
+        // Months
+        const months = Math.floor(days / 30);
+        if (months < 12) {
+            return `${months}mo ago`;
+        }
+        
+        // Years
+        const years = Math.floor(days / 365);
+        return `${years}y ago`;
+    },
+    
+    /**
+     * Format a date based on how recent it is
+     * @param {string|Date} date - The date to format
+     * @returns {string} Formatted date
+     */
+    smartDate: function(date) {
+        if (!date) return '';
+        
+        const now = new Date();
+        let dateObj = date;
+        
+        if (typeof date === 'string') {
+            dateObj = new Date(date);
+        }
+        
+        // Today
+        if (dateObj.toDateString() === now.toDateString()) {
+            return 'Today';
+        }
+        
+        // Yesterday
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        if (dateObj.toDateString() === yesterday.toDateString()) {
+            return 'Yesterday';
+        }
+        
+        // Within the last week
+        const daysDiff = Math.floor((now - dateObj) / (1000 * 60 * 60 * 24));
+        if (daysDiff < 7) {
+            return dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        }
+        
+        // Older
+        return dateObj.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        });
+    },
+    
+    /**
+     * Format a time in a human-readable way
+     * @param {string|Date} time - The time to format
+     * @returns {string} Formatted time
+     */
+    formatTime: function(time) {
+        if (!time) return '';
+        
+        let timeObj = time;
+        
+        if (typeof time === 'string') {
+            timeObj = new Date(time);
+        }
+        
+        return timeObj.toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+        });
+    },
+    
+    /**
+     * Get user initials from name
+     * @param {string} name - User name
+     * @returns {string} Initials (1-2 characters)
+     */
+    getInitials: function(name) {
+        if (!name) return '';
+        
+        // If name contains space, use first letter of first and last name
+        if (name.includes(' ')) {
+            const nameParts = name.split(' ');
+            return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+        }
+        
+        // Otherwise use first two letters of name
+        return name.substring(0, 2).toUpperCase();
+    },
+    
+    /**
+     * Replace text emoticons with emoji
+     * @param {string} text - Text containing emoticons
+     * @returns {string} Text with emoticons replaced by emoji
+     */
+    replaceEmoticons: function(text) {
+        if (!text) return '';
+        
+        const emoticons = {
+            ':)': '😊',
+            ':-)': '😊',
+            ':(': '😞',
+            ':-(': '😞',
+            ':D': '😃',
+            ':-D': '😃',
+            ';)': '😉',
+            ';-)': '😉',
+            ':P': '😋',
+            ':-P': '😋',
+            ':p': '😋',
+            ':-p': '😋',
+            '<3': '❤️',
+            ':O': '😮',
+            ':-O': '😮',
+            ':o': '😮',
+            ':-o': '😮',
+            '>:(': '😠',
+            '>:-(': '😠',
+            'XD': '😆',
+            'xD': '😆',
+            ':|': '😐',
+            ':-|': '😐',
+            ':/': '😕',
+            ':-/': '😕',
+            ':*': '😘',
+            ':-*': '😘',
+            '8)': '😎',
+            '8-)': '😎',
+            ':S': '😕',
+            ':-S': '😕',
+            ':s': '😕',
+            ':-s': '😕'
+        };
+        
+        let result = text;
+        for (const [emoticon, emoji] of Object.entries(emoticons)) {
+            result = result.replace(new RegExp(emoticon.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, '\\$1'), 'g'), emoji);
+        }
+        
+        return result;
+    },
+    
+    /**
+     * Detect and format URLs in text as HTML links
+     * @param {string} text - Text content
+     * @returns {string} HTML with links
+     */
+    linkify: function(text) {
+        if (!text) return '';
+        
+        // URL pattern
+        const urlPattern = /https?:\/\/[^\s]+/g;
+        
+        // Replace URLs with HTML links
+        return text.replace(urlPattern, url => {
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+        });
+    },
+    
+    /**
+     * Detect and highlight @mentions in text
+     * @param {string} text - Text content 
+     * @param {string|number} currentUserId - Current user ID to highlight self-mentions
+     * @returns {string} HTML with mentions highlighted
+     */
+    highlightMentions: function(text, currentUserId) {
+        if (!text) return '';
+        
+        // Mention pattern (@username)
+        const mentionPattern = /@([a-zA-Z0-9_]+)/g;
+        
+        // Replace mentions with highlighted spans
+        return text.replace(mentionPattern, (match, username) => {
+            const isSelfMention = currentUserId && username === String(currentUserId);
+            const className = isSelfMention ? 'mention mention-self' : 'mention';
+            return `<span class="${className}">${match}</span>`;
+        });
+    },
+    
+    /**
+     * Get appropriate icon class for attachment type
+     * @param {string} type - Attachment type
+     * @returns {string} Font Awesome icon class
+     */
+    getAttachmentIcon: function(type) {
+        switch (type) {
+            case 'image':
+                return 'fa-image';
+            case 'document':
+                return 'fa-file-alt';
+            case 'video':
+                return 'fa-video';
+            case 'audio':
+                return 'fa-volume-up';
+            default:
+                return 'fa-paperclip';
+        }
+    },
+    
+    /**
+     * Format file size in human-readable format (e.g., "2.5 MB")
+     * @param {number} bytes - File size in bytes
+     * @returns {string} Formatted file size
+     */
+    formatFileSize: function(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+    
+    /**
+     * Format a filename for display (truncate if too long)
+     * @param {string} filename - Full filename
+     * @param {number} maxLength - Maximum length before truncation
+     * @returns {string} Formatted filename
+     */
+    formatFilename: function(filename, maxLength = 20) {
+        if (!filename) return '';
+        
+        // Extract just the filename from the path
+        const name = filename.split('/').pop();
+        
+        // If the filename is too long, truncate it
+        if (name.length > maxLength) {
+            const extension = name.lastIndexOf('.') !== -1 ? 
+                name.substring(name.lastIndexOf('.')) : '';
+            const baseName = name.substring(0, name.length - extension.length);
+            
+            return baseName.substring(0, maxLength - 3) + '...' + extension;
+        }
+        
+        return name;
+    },
+    
+    /**
+     * Play notification sound
+     */
+    playNotificationSound: function() {
+        // Create audio element if it doesn't exist
+        let audioElement = document.getElementById('notification-sound');
+        
+        if (!audioElement) {
+            audioElement = document.createElement('audio');
+            audioElement.id = 'notification-sound';
+            audioElement.src = '/static/messaging/sounds/notification.mp3';
+            audioElement.style.display = 'none';
+            document.body.appendChild(audioElement);
+        }
+        
+        // Play sound
+        audioElement.play().catch(error => {
+            console.log('Auto-play prevented by browser. User interaction required.');
+        });
+    },
+    
+    /**
+     * Show a toast notification
+     * @param {string} message - Notification message
+     * @param {string} type - Notification type (success, error, warning, info)
+     * @param {number} duration - Duration in milliseconds
+     */
+    showToast: function(message, type = 'info', duration = 3000) {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        
+        // Add background color based on type
+        if (type === 'success') {
+            toast.style.backgroundColor = '#28a745';
+        } else if (type === 'error') {
+            toast.style.backgroundColor = '#dc3545';
+        } else if (type === 'warning') {
+            toast.style.backgroundColor = '#ffc107';
+            toast.style.color = '#212529';
+        }
+        
+        // Set content
+        toast.innerHTML = `
+            <div class="toast-content">
+                ${message}
+            </div>
+        `;
+        
+        // Add to container
+        toastContainer.appendChild(toast);
+        
+        // Show toast
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        // Hide and remove after duration
+        setTimeout(() => {
+            toast.classList.remove('show');
+            
+            // Remove from DOM after animation
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, duration);
+    },
+    
+    /**
+     * Copy text to clipboard
+     * @param {string} text - Text to copy
+     * @returns {Promise<boolean>} Success state
+     */
+    copyToClipboard: function(text) {
+        return navigator.clipboard.writeText(text)
+            .then(() => {
+                this.showToast('Copied to clipboard', 'success');
+                return true;
+            })
+            .catch(err => {
+                console.error('Could not copy text: ', err);
+                this.showToast('Failed to copy to clipboard', 'error');
+                return false;
+            });
+    },
+    
+    /**
+     * Check if a date is today
+     * @param {Date} date - Date to check
+     * @returns {boolean} True if date is today
+     */
+    isToday: function(date) {
+        const today = new Date();
+        return date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear();
+    },
+    
+    /**
+     * Check if a date is yesterday
+     * @param {Date} date - Date to check
+     * @returns {boolean} True if date is yesterday
+     */
+    isYesterday: function(date) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        return date.getDate() === yesterday.getDate() &&
+            date.getMonth() === yesterday.getMonth() &&
+            date.getFullYear() === yesterday.getFullYear();
+    }
+};
+
+// Make available globally
+window.MessagingUtils = MessagingUtils;

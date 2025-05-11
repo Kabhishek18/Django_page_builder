@@ -1,6 +1,8 @@
 # messaging/templatetags/messaging_filters.py
 from django import template
 import re
+from datetime import date, datetime, timedelta
+from django.utils import timezone
 
 register = template.Library()
 
@@ -53,16 +55,67 @@ def addstr(arg1, arg2):
 @register.filter
 def is_today(date):
     """Check if the given date is today"""
-    from datetime import date as date_type
-    today = date_type.today()
+    today = date.today()
     return date.date() == today
 
 @register.filter
 def is_yesterday(date):
     """Check if the given date is yesterday"""
-    from datetime import date as date_type, timedelta
-    yesterday = date_type.today() - timedelta(days=1)
+    yesterday = date.today() - timedelta(days=1)
     return date.date() == yesterday
+
+@register.filter
+def time_ago(timestamp):
+    """
+    Return a human-readable time difference from now
+    e.g., "2 hours ago" or "Just now"
+    """
+    if not timestamp:
+        return ''
+        
+    if isinstance(timestamp, str):
+        try:
+            timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                timestamp = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%fZ')
+            except ValueError:
+                return timestamp
+    
+    now = timezone.now()
+    
+    if timezone.is_naive(timestamp):
+        timestamp = timezone.make_aware(timestamp)
+    
+    diff = now - timestamp
+    
+    seconds = diff.total_seconds()
+    
+    if seconds < 60:
+        return "Just now"
+    
+    minutes = int(seconds / 60)
+    if minutes < 60:
+        return f"{minutes}m ago"
+    
+    hours = int(minutes / 60)
+    if hours < 24:
+        return f"{hours}h ago"
+    
+    days = int(hours / 24)
+    if days < 7:
+        return f"{days}d ago"
+    
+    if days < 31:
+        weeks = int(days / 7)
+        return f"{weeks}w ago"
+    
+    months = int(days / 30.44)
+    if months < 12:
+        return f"{months}mo ago"
+    
+    years = int(days / 365.25)
+    return f"{years}y ago"
 
 @register.filter
 def linebreaksbr_with_urls(text):
@@ -96,7 +149,7 @@ def highlight_mentions(text, user_id=None):
         username = match.group(1)
         
         # If this is a mention of the current user, add special class
-        if user_id and username == user_id:
+        if user_id and str(username) == str(user_id):
             return f'<span class="mention mention-self">@{username}</span>'
         else:
             return f'<span class="mention">@{username}</span>'
@@ -104,3 +157,89 @@ def highlight_mentions(text, user_id=None):
     text = re.sub(mention_pattern, replacement, text)
     
     return mark_safe(text)
+
+@register.filter
+def make_initials(username):
+    """
+    Get initials from username for avatars
+    """
+    if not username:
+        return "?"
+        
+    # If it contains a space, use first letter of first and last name
+    if ' ' in username:
+        names = username.split()
+        return (names[0][0] + names[-1][0]).upper()
+    
+    # If it's a single word, use first two letters or just first if too short
+    if len(username) >= 2:
+        return username[:2].upper()
+    else:
+        return username.upper()
+
+@register.filter
+def message_day_format(timestamp):
+    """
+    Format the date for messages based on how recent it is
+    """
+    if not timestamp:
+        return ""
+        
+    if isinstance(timestamp, str):
+        try:
+            timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                timestamp = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%fZ')
+            except ValueError:
+                return timestamp
+    
+    now = timezone.now()
+    timestamp_date = timestamp.date()
+    
+    if timestamp_date == now.date():
+        return "Today"
+    elif timestamp_date == (now - timedelta(days=1)).date():
+        return "Yesterday"
+    elif (now - timestamp).days < 7:
+        return timestamp.strftime('%A')  # Weekday name
+    else:
+        return timestamp.strftime('%b %d, %Y')  # e.g. Jan 15, 2023
+
+@register.filter
+def emoji_replace(text):
+    """
+    Replace text emoji like :) with unicode emoji
+    """
+    emoji_map = {
+        ':)': '😊',
+        ':(': '😞',
+        ':D': '😃',
+        ';)': '😉',
+        ':P': '😋',
+        ':p': '😋',
+        '<3': '❤️',
+        ':heart:': '❤️',
+        ':thumbsup:': '👍',
+        ':thumbs_up:': '👍',
+        ':thumbsdown:': '👎',
+        ':thumbs_down:': '👎',
+        ':+1:': '👍',
+        ':-1:': '👎',
+        ':wave:': '👋',
+        ':fire:': '🔥',
+        ':smile:': '😄',
+        ':laugh:': '😂',
+        ':laughing:': '😂',
+        ':sob:': '😭',
+        ':thinking:': '🤔',
+        ':clap:': '👏',
+        ':pray:': '🙏',
+        ':tada:': '🎉',
+        ':party:': '🎊',
+    }
+    
+    for key, value in emoji_map.items():
+        text = text.replace(key, value)
+    
+    return text

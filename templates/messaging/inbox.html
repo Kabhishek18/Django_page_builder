@@ -1,19 +1,53 @@
-{# templates/messaging/inbox.html #}
+{# templates/messaging/inbox.html - Updated Version #}
 {% extends 'messaging/base_messaging.html' %}
 {% load static %}
+{% load messaging_filters %}
 
 {% block messaging_extra_head %}
 <style>
+    /* Enhanced inbox styling */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 50px 20px;
+        height: 100%;
+        text-align: center;
+    }
+    
+    .empty-state .empty-icon {
+        font-size: 4rem;
+        color: #e9ecef;
+        margin-bottom: 20px;
+    }
+    
+    .empty-state h3 {
+        font-size: 1.5rem;
+        color: #495057;
+        margin-bottom: 10px;
+    }
+    
+    .empty-state p {
+        color: #6c757d;
+        max-width: 300px;
+        margin: 0 auto 20px;
+    }
+    
+    /* Conversation list styling */
     .conversation-list {
         height: calc(100vh - 200px);
         overflow-y: auto;
     }
     
     .conversation-item {
-        padding: 10px;
-        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #f0f0f0;
         cursor: pointer;
         transition: background-color 0.2s;
+        position: relative;
     }
     
     .conversation-item:hover {
@@ -26,141 +60,398 @@
     }
     
     .conversation-item.unread {
-        background-color: #f0f8ff;
+        background-color: rgba(52, 152, 219, 0.05);
+    }
+    
+    .avatar-container {
+        position: relative;
+        margin-right: 15px;
+    }
+    
+    .avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #6c757d;
+        font-size: 18px;
+        overflow: hidden;
+    }
+    
+    .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .avatar-group {
+        background-color: #3498db;
+        color: white;
+    }
+    
+    .avatar-broadcast {
+        background-color: #f39c12;
+        color: white;
+    }
+    
+    .status-indicator {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid white;
+    }
+    
+    .status-indicator.online {
+        background-color: #2ecc71;
+    }
+    
+    .status-indicator.offline {
+        background-color: #95a5a6;
+    }
+    
+    .conversation-details {
+        flex-grow: 1;
+        min-width: 0; /* To handle text overflow properly */
+    }
+    
+    .conversation-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 3px;
     }
     
     .conversation-name {
         font-weight: 600;
-        margin-bottom: 5px;
-        display: flex;
-        justify-content: space-between;
-    }
-    
-    .conversation-preview {
-        font-size: 0.85rem;
-        color: #666;
+        color: #495057;
+        margin-right: 10px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        max-width: 160px;
     }
     
     .conversation-time {
         font-size: 0.75rem;
-        color: #999;
-        margin-top: 5px;
-        text-align: right;
+        color: #adb5bd;
+        white-space: nowrap;
+    }
+    
+    .conversation-preview {
+        font-size: 0.875rem;
+        color: #6c757d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 240px;
     }
     
     .unread-badge {
-        display: inline-block;
-        min-width: 18px;
-        height: 18px;
-        line-height: 18px;
-        text-align: center;
-        border-radius: 50%;
-        background-color: #007bff;
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background-color: #3498db;
         color: white;
         font-size: 0.75rem;
-        margin-left: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
     }
     
-    .conversation-type-icon {
-        width: 20px;
-        text-align: center;
-        margin-right: 8px;
+    /* Tabs styling */
+    .conversation-tabs {
+        display: flex;
+        padding: 0 10px;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
     }
     
+    .conversation-tab {
+        padding: 10px 15px;
+        cursor: pointer;
+        color: #6c757d;
+        font-size: 0.9rem;
+        font-weight: 500;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+    }
+    
+    .conversation-tab:hover {
+        color: #495057;
+    }
+    
+    .conversation-tab.active {
+        color: #3498db;
+        border-bottom-color: #3498db;
+    }
+    
+    /* Search styling */
+    .conversation-search {
+        padding: 10px 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .search-input-group {
+        position: relative;
+    }
+    
+    .search-input-group input {
+        padding-left: 35px;
+        background-color: #f5f5f5;
+        border: none;
+        border-radius: 20px;
+    }
+    
+    .search-input-group input:focus {
+        background-color: #fff;
+        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.15);
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+    }
+    
+    /* Add buttons styling */
+    .new-message-fab {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-color: #3498db;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .new-message-fab:hover {
+        background-color: #2980b9;
+        transform: scale(1.05);
+    }
+    
+    .new-message-fab i {
+        font-size: 1.5rem;
+    }
+    
+    /* Welcome message styling */
     .welcome-message {
+        max-width: 600px;
+        margin: 0 auto;
         text-align: center;
         padding: 50px 20px;
-        color: #666;
     }
     
-    .welcome-message i {
-        font-size: 4rem;
-        color: #ddd;
+    .welcome-message .welcome-icon {
+        font-size: 5rem;
+        color: #e9ecef;
         margin-bottom: 20px;
+    }
+    
+    .welcome-message h2 {
+        font-size: 2rem;
+        margin-bottom: 20px;
+        color: #495057;
+    }
+    
+    .welcome-message p {
+        color: #6c757d;
+        margin-bottom: 30px;
+        font-size: 1.1rem;
+    }
+    
+    .welcome-actions {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .conversation-name {
+            max-width: 120px;
+        }
+        
+        .conversation-preview {
+            max-width: 180px;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+        }
+        
+        .empty-state {
+            padding: 30px 15px;
+        }
+        
+        .conversation-tab {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block sidebar_content %}
+<!-- Conversation Tabs -->
+<div class="conversation-tabs">
+    <div class="conversation-tab active" data-filter="all">All</div>
+    <div class="conversation-tab" data-filter="unread">Unread</div>
+    <div class="conversation-tab" data-filter="private">Private</div>
+    <div class="conversation-tab" data-filter="group">Groups</div>
+</div>
+
+<!-- Search -->
+<div class="conversation-search">
+    <div class="search-input-group">
+        <span class="search-icon">
+            <i class="fas fa-search"></i>
+        </span>
+        <input type="text" class="form-control" placeholder="Search conversations..." id="conversation-search">
+    </div>
+</div>
+
+<!-- Conversation List -->
 <div class="conversation-list">
     {% for conversation in conversations %}
     <div class="conversation-item {% if conversation.unread_count > 0 %}unread{% endif %}" 
          data-conversation-id="{{ conversation.id }}"
          data-conversation-type="{{ conversation.type }}">
-        <div class="conversation-name">
-            <div>
-                <span class="conversation-type-icon">
-                    {% if conversation.type == 'private' %}
-                        <i class="fas fa-user"></i>
-                    {% elif conversation.type == 'group' %}
-                        <i class="fas fa-users"></i>
-                    {% elif conversation.type == 'broadcast' %}
-                        <i class="fas fa-bullhorn"></i>
-                    {% endif %}
-                </span>
-                
-                {% if conversation.name %}
-                    {{ conversation.name }}
-                {% elif conversation.type == 'private' %}
+        <div class="avatar-container">
+            {% if conversation.image %}
+                <img src="{{ conversation.image.url }}" alt="{{ conversation.name }}" class="avatar">
+            {% elif conversation.type == 'group' %}
+                <div class="avatar avatar-group">
+                    <i class="fas fa-users"></i>
+                </div>
+            {% elif conversation.type == 'broadcast' %}
+                <div class="avatar avatar-broadcast">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+            {% else %}
+                <div class="avatar">
                     {% for participant in conversation.other_participants %}
-                        {{ participant.user.username }}
-                    {% empty %}
-                        Private Chat
+                        {% if participant.user != request.user %}
+                            {{ participant.user.username|make_initials }}
+                        {% endif %}
                     {% endfor %}
-                {% else %}
-                    {{ conversation.get_type_display }} #{{ conversation.id }}
-                {% endif %}
+                </div>
+            {% endif %}
+            
+            {% if conversation.type == 'private' %}
+                {% for participant in conversation.other_participants %}
+                    {% if participant.user != request.user %}
+                        <span class="status-indicator {% if participant.user.is_active %}online{% else %}offline{% endif %}"></span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+        
+        <div class="conversation-details">
+            <div class="conversation-header">
+                <div class="conversation-name">
+                    {% if conversation.name %}
+                        {{ conversation.name }}
+                    {% elif conversation.type == 'private' %}
+                        {% for participant in conversation.other_participants %}
+                            {{ participant.user.username }}
+                        {% empty %}
+                            Private Chat
+                        {% endfor %}
+                    {% else %}
+                        {{ conversation.get_type_display }}
+                    {% endif %}
+                </div>
+                <div class="conversation-time">
+                    {% if conversation.last_message %}
+                        {{ conversation.last_message.timestamp|time_ago }}
+                    {% endif %}
+                </div>
             </div>
             
-            {% if conversation.unread_count > 0 %}
-            <span class="unread-badge">{{ conversation.unread_count }}</span>
-            {% endif %}
-        </div>
-        
-        <div class="conversation-preview">
-            {% if conversation.last_message.is_deleted %}
-                <span class="text-muted"><i>This message was deleted</i></span>
-            {% elif conversation.last_message %}
-                {% if conversation.last_message.sender == user %}
-                    <span class="text-muted">You:</span>
+            <div class="conversation-preview">
+                {% if conversation.last_message.is_deleted %}
+                    <span class="text-muted"><i>This message was deleted</i></span>
+                {% elif conversation.last_message %}
+                    {% if conversation.last_message.sender == user %}
+                        <span class="text-muted">You:</span>
+                    {% else %}
+                        <span class="text-muted">{{ conversation.last_message.sender.username }}:</span>
+                    {% endif %}
+                    {% if conversation.last_message.attachment %}
+                        <i class="fas fa-paperclip"></i>
+                        {% if conversation.last_message.content %}
+                            {{ conversation.last_message.content|truncatechars:40 }}
+                        {% else %}
+                            Sent an attachment
+                        {% endif %}
+                    {% else %}
+                        {{ conversation.last_message.content|truncatechars:50 }}
+                    {% endif %}
                 {% else %}
-                    <span class="text-muted">{{ conversation.last_message.sender.username }}:</span>
+                    <span class="text-muted">No messages yet</span>
                 {% endif %}
-                {{ conversation.last_message.content|truncatechars:50 }}
-            {% else %}
-                <span class="text-muted">No messages yet</span>
-            {% endif %}
+            </div>
         </div>
         
-        <div class="conversation-time">
-            {% if conversation.last_message %}
-                {{ conversation.last_message.timestamp|date:"M d, g:i a" }}
-            {% endif %}
+        {% if conversation.unread_count > 0 %}
+        <div class="unread-badge">
+            {{ conversation.unread_count }}
         </div>
+        {% endif %}
     </div>
     {% empty %}
-    <div class="empty-conversations text-center p-4">
-        <p class="text-muted">No conversations yet.</p>
-        <p>Start a new conversation using the buttons above.</p>
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-comments"></i>
+        </div>
+        <h3>No conversations yet</h3>
+        <p>Start a new conversation to begin messaging</p>
     </div>
     {% endfor %}
+</div>
+
+<!-- Floating Action Button for new message -->
+<div class="new-message-fab" id="new-message-fab">
+    <i class="fas fa-pen"></i>
 </div>
 {% endblock %}
 
 {% block messaging_content %}
 <div class="welcome-message">
-    <i class="fas fa-comments"></i>
-    <h3>Welcome to Messages</h3>
-    <p>Select a conversation from the list or start a new one.</p>
+    <div class="welcome-icon">
+        <i class="fas fa-comment-dots"></i>
+    </div>
+    <h2>Welcome to Messages</h2>
+    <p>Start a conversation with friends, create a group chat, or send a broadcast message.</p>
     
-    <div class="mt-4">
-        <a href="{% url 'messaging:new_private_conversation' %}" class="btn btn-primary">
+    <div class="welcome-actions">
+        <a href="{% url 'messaging:new_private_conversation' %}" class="btn btn-primary btn-lg">
             <i class="fas fa-user"></i> New Private Message
         </a>
-        <a href="{% url 'messaging:new_group_conversation' %}" class="btn btn-info">
+        <a href="{% url 'messaging:new_group_conversation' %}" class="btn btn-outline-primary btn-lg">
             <i class="fas fa-users"></i> New Group Chat
         </a>
     </div>
@@ -170,54 +461,325 @@
 {% block messaging_extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Make conversation items clickable
+        // Initialize variables
         const conversationItems = document.querySelectorAll('.conversation-item');
+        const conversationTabs = document.querySelectorAll('.conversation-tab');
+        const searchInput = document.getElementById('conversation-search');
+        const newMessageFab = document.getElementById('new-message-fab');
+        
+        // Make conversation items clickable
         conversationItems.forEach(item => {
             item.addEventListener('click', function() {
                 const conversationId = this.getAttribute('data-conversation-id');
-                window.location.href = `/messaging/conversation/${conversationId}/`;
+                if (conversationId) {
+                    window.location.href = `/messaging/conversation/${conversationId}/`;
+                }
             });
         });
         
-        // Conversation filters
-        const filterButtons = document.querySelectorAll('.conversation-filters button');
-        filterButtons.forEach(button => {
-            button.addEventListener('click', function() {
+        // Conversation tab filtering
+        conversationTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
                 // Update active class
-                filterButtons.forEach(btn => btn.classList.remove('active'));
+                conversationTabs.forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
                 
-                // Apply filter
+                // Get filter value
                 const filter = this.getAttribute('data-filter');
+                
+                // Apply filter to conversation items
                 conversationItems.forEach(item => {
                     if (filter === 'all') {
                         item.style.display = '';
                     } else if (filter === 'unread') {
                         item.style.display = item.classList.contains('unread') ? '' : 'none';
                     } else {
+                        // Filter by conversation type (private, group)
                         const itemType = item.getAttribute('data-conversation-type');
-                        item.style.display = itemType === filter ? '' : 'none';
+                        item.style.display = (itemType === filter) ? '' : 'none';
                     }
                 });
+                
+                // Show empty state if no visible conversations
+                checkEmptyState();
             });
         });
         
-        // Conversation search
-        const searchInput = document.getElementById('conversation-search');
+        // Search functionality
         if (searchInput) {
             searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
+                const searchTerm = this.value.toLowerCase().trim();
                 
+                if (searchTerm === '') {
+                    // If search is empty, just apply the current tab filter
+                    const activeTab = document.querySelector('.conversation-tab.active');
+                    if (activeTab) {
+                        activeTab.click();
+                    }
+                    return;
+                }
+                
+                // Filter conversations by search term
                 conversationItems.forEach(item => {
-                    const conversationName = item.querySelector('.conversation-name').textContent.toLowerCase();
-                    const conversationPreview = item.querySelector('.conversation-preview').textContent.toLowerCase();
+                    const nameElement = item.querySelector('.conversation-name');
+                    const previewElement = item.querySelector('.conversation-preview');
                     
-                    if (conversationName.includes(searchTerm) || conversationPreview.includes(searchTerm)) {
+                    if (!nameElement || !previewElement) return;
+                    
+                    const name = nameElement.textContent.toLowerCase();
+                    const preview = previewElement.textContent.toLowerCase();
+                    
+                    if (name.includes(searchTerm) || preview.includes(searchTerm)) {
                         item.style.display = '';
                     } else {
                         item.style.display = 'none';
                     }
                 });
+                
+                // Show empty state if no visible conversations
+                checkEmptyState();
+            });
+        }
+        
+        // New message floating action button
+        if (newMessageFab) {
+            newMessageFab.addEventListener('click', function() {
+                // Create a dropdown menu
+                let dropdown = document.querySelector('.message-options-dropdown');
+                
+                if (dropdown) {
+                    // If dropdown exists, toggle visibility
+                    dropdown.remove();
+                    return;
+                }
+                
+                // Create dropdown
+                dropdown = document.createElement('div');
+                dropdown.className = 'message-options-dropdown';
+                dropdown.style.position = 'absolute';
+                dropdown.style.bottom = '75px';
+                dropdown.style.right = '20px';
+                dropdown.style.backgroundColor = 'white';
+                dropdown.style.borderRadius = '8px';
+                dropdown.style.padding = '10px 0';
+                dropdown.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                dropdown.style.zIndex = '9';
+                
+                // Add options
+                const options = [
+                    { icon: 'user', text: 'Private Message', url: '{% url "messaging:new_private_conversation" %}' },
+                    { icon: 'users', text: 'Group Chat', url: '{% url "messaging:new_group_conversation" %}' },
+                    { icon: 'bullhorn', text: 'Broadcast Message', url: '{% url "messaging:new_broadcast" %}' }
+                ];
+                
+                options.forEach(option => {
+                    const optionLink = document.createElement('a');
+                    optionLink.href = option.url;
+                    optionLink.className = 'dropdown-item';
+                    optionLink.style.display = 'flex';
+                    optionLink.style.alignItems = 'center';
+                    optionLink.style.padding = '10px 20px';
+                    optionLink.style.color = '#495057';
+                    optionLink.style.textDecoration = 'none';
+                    
+                    optionLink.innerHTML = `
+                        <i class="fas fa-${option.icon}" style="width: 25px; color: #3498db;"></i>
+                        <span>${option.text}</span>
+                    `;
+                    
+                    optionLink.addEventListener('mouseover', function() {
+                        this.style.backgroundColor = '#f8f9fa';
+                    });
+                    
+                    optionLink.addEventListener('mouseout', function() {
+                        this.style.backgroundColor = 'transparent';
+                    });
+                    
+                    dropdown.appendChild(optionLink);
+                });
+                
+                document.body.appendChild(dropdown);
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!dropdown.contains(e.target) && e.target !== newMessageFab) {
+                        dropdown.remove();
+                        document.removeEventListener('click', closeDropdown);
+                    }
+                });
+            });
+        }
+        
+        // Check if we need to show empty state
+        function checkEmptyState() {
+            const conversationList = document.querySelector('.conversation-list');
+            let visibleItems = 0;
+            
+            conversationItems.forEach(item => {
+                if (item.style.display !== 'none') {
+                    visibleItems++;
+                }
+            });
+            
+            // Get existing empty state or create one
+            let emptyState = conversationList.querySelector('.empty-state');
+            
+            if (visibleItems === 0) {
+                // If no visible items, show empty state
+                if (!emptyState) {
+                    emptyState = document.createElement('div');
+                    emptyState.className = 'empty-state';
+                    emptyState.innerHTML = `
+                        <div class="empty-icon">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <h3>No results found</h3>
+                        <p>Try a different search term or filter</p>
+                    `;
+                    
+                    conversationList.appendChild(emptyState);
+                }
+                emptyState.style.display = 'flex';
+            } else if (emptyState) {
+                // If we have visible items, hide empty state
+                emptyState.style.display = 'none';
+            }
+        }
+        
+        // Check for unread messages periodically
+        setInterval(checkUnreadMessages, 30000);
+        
+        function checkUnreadMessages() {
+            fetch('/messaging/unread-count/', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update document title with unread count
+                    const originalTitle = document.title.replace(/^\(\d+\) /, '');
+                    
+                    if (data.total_unread > 0) {
+                        document.title = `(${data.total_unread}) ${originalTitle}`;
+                    } else {
+                        document.title = originalTitle;
+                    }
+                    
+                    // If there are new unread conversations, refresh the conversation list
+                    if (data.total_unread > parseInt(document.querySelector('.unread-badge')?.textContent || 0)) {
+                        refreshConversationList();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error checking unread messages:', error);
+            });
+        }
+        
+        // Refresh conversation list via AJAX
+        function refreshConversationList() {
+            fetch(window.location.href, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                // Create a temporary element to parse the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Get the new conversation list
+                const newConversationList = tempDiv.querySelector('.conversation-list');
+                
+                if (newConversationList) {
+                    // Replace the current conversation list with the new one
+                    const currentConversationList = document.querySelector('.conversation-list');
+                    currentConversationList.innerHTML = newConversationList.innerHTML;
+                    
+                    // Re-attach event listeners
+                    const newConversationItems = currentConversationList.querySelectorAll('.conversation-item');
+                    newConversationItems.forEach(item => {
+                        item.addEventListener('click', function() {
+                            const conversationId = this.getAttribute('data-conversation-id');
+                            if (conversationId) {
+                                window.location.href = `/messaging/conversation/${conversationId}/`;
+                            }
+                        });
+                    });
+                    
+                    // Play a notification sound for new messages
+                    playNotificationSound();
+                }
+            })
+            .catch(error => {
+                console.error('Error refreshing conversation list:', error);
+            });
+        }
+        
+        // Play notification sound
+        function playNotificationSound() {
+            // Create audio element if it doesn't exist
+            let notificationSound = document.getElementById('notification-sound');
+            
+            if (!notificationSound) {
+                notificationSound = document.createElement('audio');
+                notificationSound.id = 'notification-sound';
+                notificationSound.src = '{% static "messaging/sounds/notification.mp3" %}';
+                notificationSound.style.display = 'none';
+                document.body.appendChild(notificationSound);
+            }
+            
+            // Play sound if document doesn't have focus
+            if (!document.hasFocus()) {
+                notificationSound.play().catch(e => {
+                    console.log('Auto-play prevented. User interaction needed to play sound.');
+                });
+            }
+        }
+        
+        // Show toast notifications
+        function showToast(message, type = 'info') {
+            // Create toast container if it doesn't exist
+            let toastContainer = document.querySelector('.toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                document.body.appendChild(toastContainer);
+            }
+            
+            // Create toast element
+            const toastId = 'toast-' + Date.now();
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'primary'} border-0`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            toast.setAttribute('id', toastId);
+            
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Initialize and show the toast
+            const bsToast = new bootstrap.Toast(toast, {
+                autohide: true,
+                delay: 3000
+            });
+            bsToast.show();
+            
+            // Remove toast after it's hidden
+            toast.addEventListener('hidden.bs.toast', function () {
+                toast.remove();
             });
         }
     });
