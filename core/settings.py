@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     'colorfield',  # Color picker field
     'storages',  # For AWS S3
     'django_cleanup.apps.CleanupConfig',  # Automatically delete files
+    'rest_framework', # REST framework for APIs
+    
     
     # Project apps
     'portfolio.apps.PortfolioConfig',
@@ -43,6 +45,8 @@ INSTALLED_APPS = [
     'themes.apps.ThemesConfig',
     'media.apps.MediaConfig',
     'jitsi.apps.JitsiConfig',
+    'messaging.apps.MessagingConfig',
+
 ]
 
 MIDDLEWARE = [

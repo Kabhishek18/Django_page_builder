@@ -1,12 +1,9 @@
-# Step 1: Create a new 'messaging' app
-# Run this command in your project directory:
-# python manage.py startapp messaging
-
 # messaging/models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.urls import reverse
 
 class Conversation(models.Model):
     """
@@ -44,11 +41,15 @@ class Conversation(models.Model):
         elif self.type == 'private':
             participants = self.participants.all()
             if participants.count() == 2:
-                return f"Chat between {participants[0]} and {participants[1]}"
+                return f"Chat between {participants[0].user} and {participants[1].user}"
             else:
                 return f"Private chat created on {self.created_at.strftime('%Y-%m-%d')}"
         else:
             return f"{self.get_type_display()} created on {self.created_at.strftime('%Y-%m-%d')}"
+    
+    def get_absolute_url(self):
+        """Return the URL for this conversation"""
+        return reverse('messaging:conversation_detail', kwargs={'conversation_id': self.id})
     
     def get_participants_display(self):
         """Return a comma-separated list of participant names"""
@@ -59,13 +60,19 @@ class Conversation(models.Model):
         participant, created = Participant.objects.get_or_create(
             conversation=self,
             user=user,
-            defaults={'is_admin': is_admin}
+            defaults={'is_admin': is_admin, 'is_active': True}
         )
+        
+        # If the participant existed but was inactive, reactivate them
+        if not created and not participant.is_active:
+            participant.is_active = True
+            participant.save()
+            
         return participant
     
     def remove_participant(self, user):
         """Remove a user from this conversation"""
-        Participant.objects.filter(conversation=self, user=user).delete()
+        Participant.objects.filter(conversation=self, user=user).update(is_active=False)
     
     def get_messages(self):
         """Get all messages for this conversation, ordered by timestamp"""
@@ -93,6 +100,17 @@ class Conversation(models.Model):
         if participant:
             participant.last_read = timezone.now()
             participant.save()
+            
+            # Also mark messages as read
+            self.messages.filter(is_read=False).exclude(sender=user).update(is_read=True)
+    
+    def is_participant(self, user):
+        """Check if a user is a participant in this conversation"""
+        return self.participants.filter(user=user, is_active=True).exists()
+    
+    def is_admin(self, user):
+        """Check if a user is an admin in this conversation"""
+        return self.participants.filter(user=user, is_admin=True, is_active=True).exists()
 
 
 class Participant(models.Model):
@@ -105,6 +123,7 @@ class Participant(models.Model):
     is_admin = models.BooleanField(_('Admin'), default=False)
     is_active = models.BooleanField(_('Active'), default=True)
     last_read = models.DateTimeField(_('Last Read'), null=True, blank=True)
+    has_unread = models.BooleanField(_('Has Unread Messages'), default=False)
     
     class Meta:
         verbose_name = _('Participant')
@@ -117,7 +136,11 @@ class Participant(models.Model):
     def mark_as_read(self):
         """Mark this participant as having read the conversation up to now"""
         self.last_read = timezone.now()
+        self.has_unread = False
         self.save()
+        
+        # Also mark messages as read
+        self.conversation.messages.filter(is_read=False).exclude(sender=self.user).update(is_read=True)
 
 
 class Message(models.Model):
@@ -145,7 +168,34 @@ class Message(models.Model):
         ordering = ['timestamp']
     
     def __str__(self):
+        if self.is_deleted:
+            return f"Deleted message from {self.sender} at {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
         return f"Message from {self.sender} at {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+    
+    def save(self, *args, **kwargs):
+        """Override save to handle attachment types and conversation timestamp update"""
+        # Determine attachment type if there's an attachment
+        if self.attachment and not self.attachment_type:
+            from .utils import determine_file_type
+            self.attachment_type = determine_file_type(self.attachment)
+        
+        # Save the message
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        # Update the conversation's last_message_at timestamp
+        if is_new:
+            self.conversation.last_message_at = self.timestamp
+            self.conversation.save(update_fields=['last_message_at'])
+            
+            # Mark as unread for all participants except sender
+            Participant.objects.filter(
+                conversation=self.conversation
+            ).exclude(
+                user=self.sender
+            ).update(
+                has_unread=True
+            )
     
     def edit_message(self, new_content):
         """Edit a message"""
@@ -153,14 +203,43 @@ class Message(models.Model):
         self.is_edited = True
         self.edited_at = timezone.now()
         self.save()
+        return self
     
     def delete_message(self):
         """Soft delete a message"""
         self.is_deleted = True
         self.content = "This message has been deleted"
+        if self.attachment:
+            # If we want to delete the actual file, we could do it here
+            self.attachment = None
+            self.attachment_type = ""
         self.save()
+        return self
     
     def mark_as_read(self):
         """Mark this message as read"""
-        self.is_read = True
-        self.save()
+        if not self.is_read:
+            self.is_read = True
+            self.save(update_fields=['is_read'])
+        return self
+    
+    def get_attachment_url(self):
+        """Get the URL of the attachment, if it exists"""
+        if self.attachment:
+            return self.attachment.url
+        return None
+    
+    def get_sender_display(self):
+        """Get a display name for the sender"""
+        if not self.sender:
+            return "Unknown User"
+        
+        if self.sender.first_name and self.sender.last_name:
+            return f"{self.sender.first_name} {self.sender.last_name}"
+        
+        return self.sender.username
+    
+    @property
+    def has_attachment(self):
+        """Check if this message has an attachment"""
+        return bool(self.attachment)

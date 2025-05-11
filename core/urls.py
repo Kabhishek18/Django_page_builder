@@ -19,6 +19,7 @@ urlpatterns = [
     path('themes/', include('themes.urls')),
     path('admin/pagebuilder/', include('pagebuilder.urls', namespace='pagebuilder')),
     path('meetings/', include('jitsi.urls')),
+    path('messaging/', include('messaging.urls')),
     
     # Main portfolio app - should be last as it handles dynamic pages
     path('', include('portfolio.urls')),

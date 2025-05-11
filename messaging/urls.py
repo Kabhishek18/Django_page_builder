@@ -27,7 +27,10 @@ urlpatterns = [
     path('group/<int:conversation_id>/manage/', views.manage_group, name='manage_group'),
     path('group/<int:conversation_id>/add-member/', views.add_group_member, name='add_group_member'),
     path('group/<int:conversation_id>/remove-member/<int:user_id>/', views.remove_group_member, name='remove_group_member'),
+    path('group/<int:conversation_id>/make-admin/<int:user_id>/', views.make_group_admin, name='make_group_admin'),
+    path('group/<int:conversation_id>/remove-admin/<int:user_id>/', views.remove_group_admin, name='remove_group_admin'),
     path('group/<int:conversation_id>/leave/', views.leave_group, name='leave_group'),
+    path('group/<int:conversation_id>/delete/', views.delete_group, name='delete_group'),
     
     # Notifications and updates
     path('notifications/', views.message_notifications, name='message_notifications'),

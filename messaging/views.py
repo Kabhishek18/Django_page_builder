@@ -5,13 +5,16 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.utils import timezone
 from django.contrib.auth.models import User
-from django.urls import reverse
 from django.db.models import Q, Max, OuterRef, Subquery
-from django.core.paginator import Paginator
 from django.views.decorators.http import require_POST
 
 from .models import Conversation, Participant, Message
 from .forms import MessageForm, PrivateConversationForm, GroupConversationForm, BroadcastForm
+from .serializers import (
+    MessageSerializer, MessageActionSerializer, MessageListSerializer,
+    ConversationSerializer, ConversationDetailSerializer
+)
+from .utils import get_user_conversations, get_conversation_messages_page, get_users_for_conversation
 
 
 @login_required
@@ -19,29 +22,13 @@ def inbox(request):
     """Main inbox view showing all conversations for the current user"""
     user = request.user
     
-    # Get all conversations where the user is a participant
-    conversations = Conversation.objects.filter(
-        participants__user=user,
-        participants__is_active=True
-    ).annotate(
-        last_message_time=Max('messages__timestamp')
-    ).order_by('-last_message_time')
-
-    # Get unread counts for each conversation
-    for conversation in conversations:
-        conversation.unread_count = conversation.get_unread_count(user)
-        
-        # Get the last message for preview
-        last_message = conversation.get_last_message()
-        conversation.last_message = last_message
-        
-        # Get other participants for display
-        other_participants = conversation.participants.exclude(user=user)
-        conversation.other_participants = other_participants
+    # Get all conversations for this user with unread counts
+    conversations = get_user_conversations(user)
     
     return render(request, 'messaging/inbox.html', {
         'conversations': conversations,
-        'user': user,
+        'active_tab': 'inbox',
+        'page_title': 'Messages',
     })
 
 
@@ -52,26 +39,29 @@ def conversation_detail(request, conversation_id):
     
     # Check if user is a participant
     try:
-        participant = Participant.objects.get(conversation=conversation, user=request.user)
+        participant = Participant.objects.get(
+            conversation=conversation, 
+            user=request.user,
+            is_active=True
+        )
     except Participant.DoesNotExist:
         messages.error(request, "You are not a participant in this conversation.")
         return redirect('messaging:inbox')
     
-    # Mark the conversation as read
-    conversation.mark_as_read(request.user)
-    
     # Get messages, paginated
-    message_list = conversation.get_messages()
-    paginator = Paginator(message_list, 50)  # 50 messages per page
+    messages_page = get_conversation_messages_page(conversation, request.GET.get('page', 1))
     
-    page = request.GET.get('page')
-    messages_page = paginator.get_page(page)
-    
-    # Get participants
-    participants = conversation.participants.all()
+    # Get all participants
+    participants = conversation.participants.filter(is_active=True)
     
     # Create form for new message
     form = MessageForm()
+    
+    # Get all user conversations for the sidebar
+    all_conversations = get_user_conversations(request.user)
+    
+    # Mark the conversation as read
+    conversation.mark_as_read(request.user)
     
     return render(request, 'messaging/conversation_detail.html', {
         'conversation': conversation,
@@ -79,6 +69,10 @@ def conversation_detail(request, conversation_id):
         'participants': participants,
         'form': form,
         'is_admin': participant.is_admin,
+        'conversations': all_conversations,
+        'active_conversation': conversation,
+        'active_tab': 'inbox',
+        'page_title': f'Conversation with {conversation}',
     })
 
 
@@ -90,7 +84,11 @@ def send_message(request, conversation_id):
     
     # Check if user is a participant
     try:
-        Participant.objects.get(conversation=conversation, user=request.user, is_active=True)
+        Participant.objects.get(
+            conversation=conversation, 
+            user=request.user, 
+            is_active=True
+        )
     except Participant.DoesNotExist:
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'status': 'error', 'message': 'Not a participant'}, status=403)
@@ -104,27 +102,12 @@ def send_message(request, conversation_id):
         message.conversation = conversation
         message.sender = request.user
         
-        # Handle attachment type detection
-        if message.attachment:
-            filename = message.attachment.name.lower()
-            if filename.endswith(('.jpg', '.jpeg', '.png', '.gif')):
-                message.attachment_type = 'image'
-            elif filename.endswith(('.mp4', '.avi', '.mov')):
-                message.attachment_type = 'video'
-            elif filename.endswith(('.mp3', '.wav', '.ogg')):
-                message.attachment_type = 'audio'
-            elif filename.endswith(('.pdf', '.doc', '.docx', '.xls', '.xlsx')):
-                message.attachment_type = 'document'
-            else:
-                message.attachment_type = 'file'
-        
+        # Handle attachment type detection (done in Message.save)
         message.save()
         
-        # Update conversation's last_message_at
-        conversation.last_message_at = timezone.now()
-        conversation.save()
-        
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            # For AJAX requests, return JSON
+            serializer = MessageSerializer(message)
             return JsonResponse({
                 'status': 'success',
                 'message': {
@@ -133,7 +116,7 @@ def send_message(request, conversation_id):
                     'sender': message.sender.username,
                     'timestamp': message.timestamp.strftime('%b %d, %Y, %I:%M %p'),
                     'has_attachment': bool(message.attachment),
-                    'attachment_url': message.attachment.url if message.attachment else None,
+                    'attachment_url': message.get_attachment_url(),
                     'attachment_type': message.attachment_type,
                 }
             })
@@ -154,7 +137,11 @@ def load_messages(request, conversation_id):
     
     # Check if user is a participant
     try:
-        Participant.objects.get(conversation=conversation, user=request.user)
+        Participant.objects.get(
+            conversation=conversation, 
+            user=request.user,
+            is_active=True
+        )
     except Participant.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Not a participant'}, status=403)
     
@@ -182,7 +169,7 @@ def load_messages(request, conversation_id):
             'is_edited': message.is_edited,
             'is_deleted': message.is_deleted,
             'has_attachment': bool(message.attachment),
-            'attachment_url': message.attachment.url if message.attachment else None,
+            'attachment_url': message.get_attachment_url(),
             'attachment_type': message.attachment_type,
         })
     
@@ -200,7 +187,12 @@ def mark_as_read(request, conversation_id):
     conversation = get_object_or_404(Conversation, id=conversation_id)
     
     # Check if user is a participant
-    participant = get_object_or_404(Participant, conversation=conversation, user=request.user)
+    participant = get_object_or_404(
+        Participant, 
+        conversation=conversation, 
+        user=request.user,
+        is_active=True
+    )
     
     # Mark as read
     participant.mark_as_read()
@@ -235,13 +227,14 @@ def edit_message(request, message_id):
     message.edit_message(new_content)
     
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        serializer = MessageActionSerializer({
+            'id': message.id,
+            'content': message.content,
+            'edited_at': message.edited_at,
+        })
         return JsonResponse({
             'status': 'success',
-            'message': {
-                'id': message.id,
-                'content': message.content,
-                'edited_at': message.edited_at.strftime('%b %d, %Y, %I:%M %p'),
-            }
+            'message': serializer.data
         })
     
     return redirect('messaging:conversation_detail', conversation_id=message.conversation.id)
@@ -259,7 +252,8 @@ def delete_message(request, message_id):
     is_admin = Participant.objects.filter(
         conversation=message.conversation, 
         user=request.user,
-        is_admin=True
+        is_admin=True,
+        is_active=True
     ).exists()
     
     if not (is_sender or is_admin):
@@ -289,7 +283,7 @@ def new_private_conversation(request):
             # Check if a conversation already exists between these users
             existing_conversation = None
             
-            # Find conversations where both users are participants
+            # Find private conversations where both users are participants
             user_conversations = Conversation.objects.filter(
                 participants__user=request.user,
                 type='private'
@@ -298,7 +292,7 @@ def new_private_conversation(request):
             for conv in user_conversations:
                 # If this is a private convo with exactly 2 participants including recipient
                 if (conv.participants.count() == 2 and 
-                    conv.participants.filter(user=recipient).exists()):
+                    conv.participants.filter(user=recipient, is_active=True).exists()):
                     existing_conversation = conv
                     break
             
@@ -322,10 +316,6 @@ def new_private_conversation(request):
                 content=message_content
             )
             
-            # Update conversation timestamp
-            conversation.last_message_at = timezone.now()
-            conversation.save()
-            
             messages.success(request, f"Message sent to {recipient}.")
             return redirect('messaging:conversation_detail', conversation_id=conversation.id)
     else:
@@ -344,6 +334,8 @@ def new_private_conversation(request):
     
     return render(request, 'messaging/new_private_conversation.html', {
         'form': form,
+        'active_tab': 'new_message',
+        'page_title': 'New Message',
     })
 
 
@@ -362,6 +354,8 @@ def new_group_conversation(request):
     
     return render(request, 'messaging/new_group_conversation.html', {
         'form': form,
+        'active_tab': 'new_group',
+        'page_title': 'New Group Chat',
     })
 
 
@@ -380,6 +374,8 @@ def new_broadcast(request):
     
     return render(request, 'messaging/new_broadcast.html', {
         'form': form,
+        'active_tab': 'new_broadcast',
+        'page_title': 'New Broadcast',
     })
 
 
@@ -393,11 +389,19 @@ def manage_group(request, conversation_id):
         Participant, 
         conversation=conversation, 
         user=request.user,
-        is_admin=True
+        is_admin=True,
+        is_active=True
     )
     
     # Get all participants
-    participants = conversation.participants.all()
+    participants = conversation.participants.filter(is_active=True)
+    
+    # Get users who can be added to the group
+    available_users = get_users_for_conversation(exclude_user=request.user)
+    
+    # Filter out users who are already in the group
+    existing_user_ids = participants.values_list('user_id', flat=True)
+    available_users = available_users.exclude(id__in=existing_user_ids)
     
     # Handle group info updates
     if request.method == 'POST':
@@ -419,6 +423,9 @@ def manage_group(request, conversation_id):
     return render(request, 'messaging/manage_group.html', {
         'conversation': conversation,
         'participants': participants,
+        'available_users': available_users,
+        'active_tab': 'inbox',
+        'page_title': f'Manage {conversation.name}',
     })
 
 
@@ -433,7 +440,8 @@ def add_group_member(request, conversation_id):
         Participant.objects.get(
             conversation=conversation, 
             user=request.user,
-            is_admin=True
+            is_admin=True,
+            is_active=True
         )
     except Participant.DoesNotExist:
         messages.error(request, "You don't have permission to add members to this group.")
@@ -448,7 +456,7 @@ def add_group_member(request, conversation_id):
         return redirect('messaging:manage_group', conversation_id=conversation.id)
     
     # Check if user is already in the group
-    if conversation.participants.filter(user=user_to_add).exists():
+    if conversation.participants.filter(user=user_to_add, is_active=True).exists():
         messages.info(request, f"{user_to_add} is already a member of this group.")
         return redirect('messaging:manage_group', conversation_id=conversation.id)
     
@@ -475,7 +483,8 @@ def remove_group_member(request, conversation_id, user_id):
     is_admin = Participant.objects.filter(
         conversation=conversation, 
         user=request.user,
-        is_admin=True
+        is_admin=True,
+        is_active=True
     ).exists()
     
     is_self = int(user_id) == request.user.id
@@ -492,14 +501,14 @@ def remove_group_member(request, conversation_id, user_id):
         return redirect('messaging:manage_group', conversation_id=conversation.id)
     
     # Check if user is in the group
-    if not conversation.participants.filter(user=user_to_remove).exists():
+    if not conversation.participants.filter(user=user_to_remove, is_active=True).exists():
         messages.info(request, f"{user_to_remove} is not a member of this group.")
         return redirect('messaging:manage_group', conversation_id=conversation.id)
     
     # Cannot remove the last admin
     if user_to_remove == request.user and is_admin:
         # Check if this is the last admin
-        admin_count = conversation.participants.filter(is_admin=True).count()
+        admin_count = conversation.participants.filter(is_admin=True, is_active=True).count()
         if admin_count <= 1:
             messages.error(request, "You cannot leave the group as you are the last admin. Please make someone else an admin first.")
             return redirect('messaging:manage_group', conversation_id=conversation.id)
@@ -540,18 +549,17 @@ def leave_group(request, conversation_id):
 def message_notifications(request):
     """Get unread message notifications for the user (AJAX)"""
     # Get conversations with unread messages
-    user_conversations = Conversation.objects.filter(participants__user=request.user)
+    user_conversations = get_user_conversations(request.user)
     
     unread_conversations = []
     total_unread = 0
     
     for conversation in user_conversations:
-        unread_count = conversation.get_unread_count(request.user)
-        if unread_count > 0:
-            total_unread += unread_count
+        if conversation.unread_count > 0:
+            total_unread += conversation.unread_count
             
             # Get conversation preview data
-            last_message = conversation.get_last_message()
+            last_message = conversation.last_message
             sender_name = last_message.sender.username if last_message and last_message.sender else "Unknown"
             
             # Get conversation name/title
@@ -559,15 +567,15 @@ def message_notifications(request):
                 conversation_name = conversation.name
             elif conversation.type == 'private':
                 # For private conversations, show the other user's name
-                other_user = conversation.participants.exclude(user=request.user).first()
-                conversation_name = other_user.user.username if other_user else "Private Conversation"
+                other_participant = conversation.participants.exclude(user=request.user).first()
+                conversation_name = other_participant.user.username if other_participant else "Private Conversation"
             else:
                 conversation_name = f"{conversation.get_type_display()} #{conversation.id}"
             
             unread_conversations.append({
                 'id': conversation.id,
                 'name': conversation_name,
-                'unread_count': unread_count,
+                'unread_count': conversation.unread_count,
                 'last_message_preview': last_message.content[:50] + '...' if last_message and len(last_message.content) > 50 else (last_message.content if last_message else ""),
                 'sender_name': sender_name,
                 'timestamp': last_message.timestamp.strftime('%b %d, %Y, %I:%M %p') if last_message else "",
@@ -583,14 +591,129 @@ def message_notifications(request):
 @login_required
 def unread_count(request):
     """Get total unread message count for the user (AJAX)"""
-    # Get conversations with unread messages
-    user_conversations = Conversation.objects.filter(participants__user=request.user)
+    user_conversations = get_user_conversations(request.user)
     
-    total_unread = 0
-    for conversation in user_conversations:
-        total_unread += conversation.get_unread_count(request.user)
+    total_unread = sum(c.unread_count for c in user_conversations)
     
     return JsonResponse({
         'status': 'success',
         'total_unread': total_unread,
     })
+
+
+@login_required
+@require_POST
+def make_group_admin(request, conversation_id, user_id):
+    """Make a user an admin of a group conversation"""
+    conversation = get_object_or_404(Conversation, id=conversation_id, type='group')
+    
+    # Check if current user is an admin
+    try:
+        Participant.objects.get(
+            conversation=conversation, 
+            user=request.user,
+            is_admin=True,
+            is_active=True
+        )
+    except Participant.DoesNotExist:
+        messages.error(request, "You don't have permission to manage group admins.")
+        return redirect('messaging:conversation_detail', conversation_id=conversation.id)
+    
+    # Get participant to make admin
+    participant = get_object_or_404(
+        Participant, 
+        conversation=conversation, 
+        user_id=user_id,
+        is_active=True
+    )
+    
+    # Make the participant an admin
+    participant.is_admin = True
+    participant.save()
+    
+    # Create system message
+    Message.objects.create(
+        conversation=conversation,
+        sender=request.user,
+        content=f"{participant.user} is now a group admin."
+    )
+    
+    messages.success(request, f"{participant.user} is now a group admin.")
+    return redirect('messaging:manage_group', conversation_id=conversation.id)
+
+
+@login_required
+@require_POST
+def remove_group_admin(request, conversation_id, user_id):
+    """Remove admin status from a user in a group conversation"""
+    conversation = get_object_or_404(Conversation, id=conversation_id, type='group')
+    
+    # Check if current user is an admin
+    try:
+        Participant.objects.get(
+            conversation=conversation, 
+            user=request.user,
+            is_admin=True,
+            is_active=True
+        )
+    except Participant.DoesNotExist:
+        messages.error(request, "You don't have permission to manage group admins.")
+        return redirect('messaging:conversation_detail', conversation_id=conversation.id)
+    
+    # Get participant to remove admin status
+    participant = get_object_or_404(
+        Participant, 
+        conversation=conversation, 
+        user_id=user_id,
+        is_admin=True,
+        is_active=True
+    )
+    
+    # Cannot remove the last admin
+    admin_count = conversation.participants.filter(is_admin=True, is_active=True).count()
+    if admin_count <= 1:
+        messages.error(request, "Cannot remove the last admin from the group.")
+        return redirect('messaging:manage_group', conversation_id=conversation.id)
+    
+    # Remove admin status
+    participant.is_admin = False
+    participant.save()
+    
+    # Create system message
+    Message.objects.create(
+        conversation=conversation,
+        sender=request.user,
+        content=f"{participant.user} is no longer a group admin."
+    )
+    
+    messages.success(request, f"{participant.user} is no longer a group admin.")
+    return redirect('messaging:manage_group', conversation_id=conversation.id)
+
+
+@login_required
+@require_POST
+def delete_group(request, conversation_id):
+    """Delete a group conversation"""
+    conversation = get_object_or_404(Conversation, id=conversation_id, type='group')
+    
+    # Check if user is an admin of this group
+    try:
+        Participant.objects.get(
+            conversation=conversation, 
+            user=request.user,
+            is_admin=True,
+            is_active=True
+        )
+    except Participant.DoesNotExist:
+        messages.error(request, "You don't have permission to delete this group.")
+        return redirect('messaging:conversation_detail', conversation_id=conversation.id)
+    
+    # Instead of actually deleting the conversation, mark it as inactive
+    conversation.is_active = False
+    conversation.save()
+    
+    # Mark all participants as inactive
+    conversation.participants.update(is_active=False)
+    
+    messages.success(request, f"Group '{conversation.name}' has been deleted.")
+    return redirect('messaging:inbox')

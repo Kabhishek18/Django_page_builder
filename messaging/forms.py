@@ -10,7 +10,10 @@ class MessageForm(forms.ModelForm):
     
     attachment = forms.FileField(
         required=False,
-        widget=forms.ClearableFileInput(attrs={'class': 'form-control'})
+        widget=forms.ClearableFileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain',
+        })
     )
     
     class Meta:
@@ -19,11 +22,21 @@ class MessageForm(forms.ModelForm):
         widgets = {
             'content': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 3,
+                'rows': 1,
                 'placeholder': _('Type your message here...'),
-                'required': True
+                'required': True,
+                'autofocus': True,
             }),
         }
+
+    def clean_attachment(self):
+        """Validate attachment size"""
+        attachment = self.cleaned_data.get('attachment')
+        if attachment:
+            # Limit to 10MB
+            if attachment.size > 10 * 1024 * 1024:
+                raise forms.ValidationError(_("File is too large. Maximum size is 10MB."))
+        return attachment
 
 
 class PrivateConversationForm(forms.Form):
@@ -32,7 +45,10 @@ class PrivateConversationForm(forms.Form):
     recipient = forms.ModelChoiceField(
         queryset=User.objects.all(),
         label=_('Send message to'),
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={
+            'class': 'form-control form-select',
+            'data-placeholder': _('Search for a user...'),
+        })
     )
     
     message = forms.CharField(
@@ -40,7 +56,7 @@ class PrivateConversationForm(forms.Form):
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 3,
-            'placeholder': _('Type your message here...')
+            'placeholder': _('Type your message here...'),
         })
     )
     
@@ -50,7 +66,7 @@ class PrivateConversationForm(forms.Form):
         
         # Exclude current user from recipients
         if current_user:
-            self.fields['recipient'].queryset = User.objects.exclude(id=current_user.id)
+            self.fields['recipient'].queryset = User.objects.exclude(id=current_user.id).filter(is_active=True)
 
 
 class GroupConversationForm(forms.ModelForm):
@@ -59,7 +75,10 @@ class GroupConversationForm(forms.ModelForm):
     participants = forms.ModelMultipleChoiceField(
         queryset=User.objects.all(),
         label=_('Participants'),
-        widget=forms.SelectMultiple(attrs={'class': 'form-control'})
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control form-select',
+            'data-placeholder': _('Select participants...'),
+        })
     )
     
     initial_message = forms.CharField(
@@ -68,7 +87,7 @@ class GroupConversationForm(forms.ModelForm):
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 3,
-            'placeholder': _('Send an optional initial message to the group...')
+            'placeholder': _('Send an optional initial message to the group...'),
         })
     )
     
@@ -76,9 +95,19 @@ class GroupConversationForm(forms.ModelForm):
         model = Conversation
         fields = ['name', 'description', 'image', 'participants', 'initial_message']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('Group name'),
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': _('Group description (optional)'),
+            }),
+            'image': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*',
+            }),
         }
     
     def __init__(self, *args, **kwargs):
@@ -87,7 +116,22 @@ class GroupConversationForm(forms.ModelForm):
         
         # Exclude current user from participants selection
         if current_user:
-            self.fields['participants'].queryset = User.objects.exclude(id=current_user.id)
+            self.fields['participants'].queryset = User.objects.exclude(id=current_user.id).filter(is_active=True)
+            
+    def clean_image(self):
+        """Validate image size and format"""
+        image = self.cleaned_data.get('image')
+        if image:
+            # Limit to 5MB
+            if image.size > 5 * 1024 * 1024:
+                raise forms.ValidationError(_("Image is too large. Maximum size is 5MB."))
+            
+            # Check file extension
+            allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif']
+            file_extension = image.name.lower().split('.')[-1]
+            if '.' + file_extension not in allowed_extensions:
+                raise forms.ValidationError(_("Only JPG, JPEG, PNG, and GIF images are allowed."))
+        return image
             
     def save(self, commit=True, creator=None):
         # Set conversation type to 'group'
@@ -125,7 +169,10 @@ class BroadcastForm(forms.ModelForm):
     recipients = forms.ModelMultipleChoiceField(
         queryset=User.objects.all(),
         label=_('Recipients'),
-        widget=forms.SelectMultiple(attrs={'class': 'form-control'})
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control form-select',
+            'data-placeholder': _('Select recipients...'),
+        })
     )
     
     message = forms.CharField(
@@ -133,7 +180,7 @@ class BroadcastForm(forms.ModelForm):
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 4,
-            'placeholder': _('Enter your broadcast message here...')
+            'placeholder': _('Enter your broadcast message here...'),
         })
     )
     
@@ -143,9 +190,17 @@ class BroadcastForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': _('Broadcast title (optional)')
+                'placeholder': _('Broadcast title (optional)'),
             }),
         }
+    
+    def __init__(self, *args, **kwargs):
+        current_user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Exclude current user from recipients
+        if current_user:
+            self.fields['recipients'].queryset = User.objects.exclude(id=current_user.id).filter(is_active=True)
     
     def save(self, commit=True, sender=None):
         # Set conversation type to 'broadcast'
