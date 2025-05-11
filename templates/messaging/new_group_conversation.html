@@ -1,0 +1,201 @@
+{# templates/messaging/new_group_conversation.html #}
+{% extends 'messaging/base_messaging.html' %}
+{% load static %}
+
+{% block messaging_extra_head %}
+<style>
+    .selected-participants {
+        margin-top: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .participant-tag {
+        display: inline-block;
+        margin-right: 5px;
+        margin-bottom: 5px;
+        padding: 5px 10px;
+        background-color: #e9f5ff;
+        border-radius: 20px;
+        font-size: 0.9rem;
+    }
+    
+    .participant-tag .remove-participant {
+        margin-left: 5px;
+        cursor: pointer;
+        color: #999;
+    }
+    
+    .participant-tag .remove-participant:hover {
+        color: #dc3545;
+    }
+    
+    .image-preview {
+        max-width: 200px;
+        max-height: 200px;
+        margin-top: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block messaging_content %}
+<div class="container py-4">
+    <h3 class="mb-4">Create Group Chat</h3>
+    
+    <form method="post" class="group-form" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.name.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="form-text">
+                Give your group chat a name so participants can easily identify it.
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+            {{ form.description }}
+            {% if form.description.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.description.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="form-text">
+                Add an optional description for your group.
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.image.id_for_label }}" class="form-label">{{ form.image.label }}</label>
+            {{ form.image }}
+            {% if form.image.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.image.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="form-text">
+                Add an optional image for your group.
+            </div>
+            <img id="image-preview" class="image-preview" src="#" alt="Preview">
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.participants.id_for_label }}" class="form-label">{{ form.participants.label }}</label>
+            {{ form.participants }}
+            {% if form.participants.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.participants.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="form-text">
+                Select the users you want to add to the group. You'll be added automatically.
+            </div>
+            
+            <div class="selected-participants" id="selected-participants"></div>
+        </div>
+        
+        <div class="mb-4">
+            <label for="{{ form.initial_message.id_for_label }}" class="form-label">{{ form.initial_message.label }}</label>
+            {{ form.initial_message }}
+            {% if form.initial_message.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.initial_message.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="form-text">
+                Send an optional first message to the group when it's created.
+            </div>
+        </div>
+        
+        <div class="text-end">
+            <a href="{% url 'messaging:inbox' %}" class="btn btn-secondary me-2">Cancel</a>
+            <button type="submit" class="btn btn-primary">Create Group</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block messaging_extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize select2 for better participant selection
+        const participantsSelect = $('#{{ form.participants.id_for_label }}');
+        participantsSelect.select2({
+            theme: 'bootstrap4',
+            placeholder: 'Search for users...',
+            width: '100%',
+            closeOnSelect: false
+        });
+        
+        // Update selected participants display
+        function updateSelectedParticipants() {
+            const selectedParticipants = $('#selected-participants');
+            selectedParticipants.empty();
+            
+            const selectedOptions = participantsSelect.select2('data');
+            selectedOptions.forEach(option => {
+                const tag = $(`
+                    <div class="participant-tag">
+                        ${option.text}
+                        <span class="remove-participant" data-id="${option.id}">&times;</span>
+                    </div>
+                `);
+                selectedParticipants.append(tag);
+            });
+        }
+        
+        // Initial update
+        updateSelectedParticipants();
+        
+        // Update when selection changes
+        participantsSelect.on('change', updateSelectedParticipants);
+        
+        // Remove participant when clicking X
+        $(document).on('click', '.remove-participant', function() {
+            const id = $(this).data('id');
+            const values = participantsSelect.val();
+            const index = values.indexOf(id.toString());
+            
+            if (index > -1) {
+                values.splice(index, 1);
+                participantsSelect.val(values).trigger('change');
+            }
+        });
+        
+        // Image preview
+        const imageInput = document.getElementById('{{ form.image.id_for_label }}');
+        const imagePreview = document.getElementById('image-preview');
+        
+        imageInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(this.files[0]);
+            } else {
+                imagePreview.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}

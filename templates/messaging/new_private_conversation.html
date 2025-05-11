@@ -1,0 +1,110 @@
+{# templates/messaging/new_private_conversation.html #}
+{% extends 'messaging/base_messaging.html' %}
+{% load static %}
+
+{% block messaging_extra_head %}
+<style>
+    .user-select-card {
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #e0e0e0;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+    
+    .user-select-card:hover {
+        border-color: #007bff;
+        background-color: #f8f9fa;
+    }
+    
+    .user-select-card.selected {
+        border-color: #007bff;
+        background-color: #e9f7ff;
+    }
+    
+    .user-select-card h5 {
+        margin: 0;
+    }
+    
+    .recent-users {
+        margin-bottom: 20px;
+    }
+    
+    .recent-users h5 {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 10px;
+    }
+    
+    .recent-user-item {
+        display: inline-block;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        padding: 5px 10px;
+        background-color: #f0f0f0;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .recent-user-item:hover {
+        background-color: #e0e0e0;
+    }
+</style>
+{% endblock %}
+
+{% block messaging_content %}
+<div class="container py-4">
+    <h3 class="mb-4">Send Private Message</h3>
+    
+    <form method="post" class="message-form">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="{{ form.recipient.id_for_label }}" class="form-label">{{ form.recipient.label }}</label>
+            {{ form.recipient }}
+            {% if form.recipient.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.recipient.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="form-text">
+                Select a user to send a private message.
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.message.id_for_label }}" class="form-label">{{ form.message.label }}</label>
+            {{ form.message }}
+            {% if form.message.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.message.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="text-end">
+            <a href="{% url 'messaging:inbox' %}" class="btn btn-secondary me-2">Cancel</a>
+            <button type="submit" class="btn btn-primary">Send</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block messaging_extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize select2 for better user selection
+        $('#{{ form.recipient.id_for_label }}').select2({
+            theme: 'bootstrap4',
+            placeholder: 'Search for a user...',
+            width: '100%'
+        });
+    });
+</script>
+{% endblock %}

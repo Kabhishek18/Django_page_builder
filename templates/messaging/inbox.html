@@ -1,0 +1,225 @@
+{# templates/messaging/inbox.html #}
+{% extends 'messaging/base_messaging.html' %}
+{% load static %}
+
+{% block messaging_extra_head %}
+<style>
+    .conversation-list {
+        height: calc(100vh - 200px);
+        overflow-y: auto;
+    }
+    
+    .conversation-item {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .conversation-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .conversation-item.active {
+        background-color: #e9f5ff;
+        border-left: 3px solid #007bff;
+    }
+    
+    .conversation-item.unread {
+        background-color: #f0f8ff;
+    }
+    
+    .conversation-name {
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .conversation-preview {
+        font-size: 0.85rem;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .conversation-time {
+        font-size: 0.75rem;
+        color: #999;
+        margin-top: 5px;
+        text-align: right;
+    }
+    
+    .unread-badge {
+        display: inline-block;
+        min-width: 18px;
+        height: 18px;
+        line-height: 18px;
+        text-align: center;
+        border-radius: 50%;
+        background-color: #007bff;
+        color: white;
+        font-size: 0.75rem;
+        margin-left: 5px;
+    }
+    
+    .conversation-type-icon {
+        width: 20px;
+        text-align: center;
+        margin-right: 8px;
+    }
+    
+    .welcome-message {
+        text-align: center;
+        padding: 50px 20px;
+        color: #666;
+    }
+    
+    .welcome-message i {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block sidebar_content %}
+<div class="conversation-list">
+    {% for conversation in conversations %}
+    <div class="conversation-item {% if conversation.unread_count > 0 %}unread{% endif %}" 
+         data-conversation-id="{{ conversation.id }}"
+         data-conversation-type="{{ conversation.type }}">
+        <div class="conversation-name">
+            <div>
+                <span class="conversation-type-icon">
+                    {% if conversation.type == 'private' %}
+                        <i class="fas fa-user"></i>
+                    {% elif conversation.type == 'group' %}
+                        <i class="fas fa-users"></i>
+                    {% elif conversation.type == 'broadcast' %}
+                        <i class="fas fa-bullhorn"></i>
+                    {% endif %}
+                </span>
+                
+                {% if conversation.name %}
+                    {{ conversation.name }}
+                {% elif conversation.type == 'private' %}
+                    {% for participant in conversation.other_participants %}
+                        {{ participant.user.username }}
+                    {% empty %}
+                        Private Chat
+                    {% endfor %}
+                {% else %}
+                    {{ conversation.get_type_display }} #{{ conversation.id }}
+                {% endif %}
+            </div>
+            
+            {% if conversation.unread_count > 0 %}
+            <span class="unread-badge">{{ conversation.unread_count }}</span>
+            {% endif %}
+        </div>
+        
+        <div class="conversation-preview">
+            {% if conversation.last_message.is_deleted %}
+                <span class="text-muted"><i>This message was deleted</i></span>
+            {% elif conversation.last_message %}
+                {% if conversation.last_message.sender == user %}
+                    <span class="text-muted">You:</span>
+                {% else %}
+                    <span class="text-muted">{{ conversation.last_message.sender.username }}:</span>
+                {% endif %}
+                {{ conversation.last_message.content|truncatechars:50 }}
+            {% else %}
+                <span class="text-muted">No messages yet</span>
+            {% endif %}
+        </div>
+        
+        <div class="conversation-time">
+            {% if conversation.last_message %}
+                {{ conversation.last_message.timestamp|date:"M d, g:i a" }}
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-conversations text-center p-4">
+        <p class="text-muted">No conversations yet.</p>
+        <p>Start a new conversation using the buttons above.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block messaging_content %}
+<div class="welcome-message">
+    <i class="fas fa-comments"></i>
+    <h3>Welcome to Messages</h3>
+    <p>Select a conversation from the list or start a new one.</p>
+    
+    <div class="mt-4">
+        <a href="{% url 'messaging:new_private_conversation' %}" class="btn btn-primary">
+            <i class="fas fa-user"></i> New Private Message
+        </a>
+        <a href="{% url 'messaging:new_group_conversation' %}" class="btn btn-info">
+            <i class="fas fa-users"></i> New Group Chat
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block messaging_extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Make conversation items clickable
+        const conversationItems = document.querySelectorAll('.conversation-item');
+        conversationItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const conversationId = this.getAttribute('data-conversation-id');
+                window.location.href = `/messaging/conversation/${conversationId}/`;
+            });
+        });
+        
+        // Conversation filters
+        const filterButtons = document.querySelectorAll('.conversation-filters button');
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active class
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Apply filter
+                const filter = this.getAttribute('data-filter');
+                conversationItems.forEach(item => {
+                    if (filter === 'all') {
+                        item.style.display = '';
+                    } else if (filter === 'unread') {
+                        item.style.display = item.classList.contains('unread') ? '' : 'none';
+                    } else {
+                        const itemType = item.getAttribute('data-conversation-type');
+                        item.style.display = itemType === filter ? '' : 'none';
+                    }
+                });
+            });
+        });
+        
+        // Conversation search
+        const searchInput = document.getElementById('conversation-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                conversationItems.forEach(item => {
+                    const conversationName = item.querySelector('.conversation-name').textContent.toLowerCase();
+                    const conversationPreview = item.querySelector('.conversation-preview').textContent.toLowerCase();
+                    
+                    if (conversationName.includes(searchTerm) || conversationPreview.includes(searchTerm)) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

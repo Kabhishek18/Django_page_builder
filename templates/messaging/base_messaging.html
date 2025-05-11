@@ -1,0 +1,67 @@
+{# templates/messaging/base_messaging.html #}
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'messaging/css/messaging.css' %}">
+    {% block messaging_extra_head %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="messaging-container">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 messaging-sidebar">
+            <div class="sidebar-header">
+                <h4>Messages</h4>
+                
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="newMessageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="newMessageDropdown">
+                        <li><a class="dropdown-item" href="{% url 'messaging:new_private_conversation' %}">
+                            <i class="fas fa-user"></i> Private Message
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'messaging:new_group_conversation' %}">
+                            <i class="fas fa-users"></i> Group Chat
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'messaging:new_broadcast' %}">
+                            <i class="fas fa-bullhorn"></i> Broadcast
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="conversation-filters">
+                <div class="btn-group" role="group" aria-label="Conversation filters">
+                    <button type="button" class="btn btn-sm btn-outline-secondary active" data-filter="all">All</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="unread">Unread</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="private">Private</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="group">Groups</button>
+                </div>
+            </div>
+            
+            <div class="conversation-search mt-2">
+                <input type="text" class="form-control form-control-sm" placeholder="Search conversations..." id="conversation-search">
+            </div>
+            
+            {% block sidebar_content %}
+            <!-- Conversation list will go here in child templates -->
+            {% endblock %}
+        </div>
+        
+        <!-- Main content area -->
+        <div class="col-md-9 messaging-content">
+            {% block messaging_content %}
+            <!-- Main content will go here in child templates -->
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'messaging/js/messaging.js' %}"></script>
+    {% block messaging_extra_js %}{% endblock %}
+{% endblock %}
