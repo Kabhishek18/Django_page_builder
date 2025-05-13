@@ -29,7 +29,8 @@ def generate_jwt_token(domain, app_id, app_secret, room_name, user_id, user_name
     """
     now = int(time.time())
     expiry_time = now + (expiry * 3600)  # Convert hours to seconds
-    
+    domain = domain.replace('https://', '').replace('http://', '')
+
     payload = {
         'iss': app_id,
         'aud': 'jitsi',  # Make sure this matches JWT_ACCEPTED_AUDIENCES in Jitsi config

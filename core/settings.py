@@ -134,9 +134,11 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media_files')
 # Configure Jitsi settings
 # Jitsi Configuration for Docker installation
-JITSI_DOMAIN = 'http://127.0.0.1:8000'  # Change to your Docker Jitsi domain/port
-JITSI_APP_ID = 'jitsi'           # Default value that will work without JWT
-JITSI_APP_SECRET = 'secret'      # Default value that will work without JWT
+# Configure Jitsi settings
+JITSI_DOMAIN = '127.0.0.1:8000'  # Use the HTTP port that you confirmed is working
+JITSI_APP_ID = 'jitsi'  
+JITSI_APP_SECRET = 'secret'
+JITSI_ENABLED = True  # Default value that will work without JWT
 # If AWS credentials are provided, use S3 for static and media files
 # AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 # AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')

@@ -127,8 +127,7 @@
     <script>
         // Initialize Jitsi Meet API
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("Loading Jitsi API from:", "http://{{ domain }}/external_api.js");
-            
+        console.log("Loading Jitsi API from:", "http://{{ domain }}/external_api.js");
             // Load the Jitsi external API script dynamically
             const script = document.createElement('script');
             script.src = "http://{{ domain }}/external_api.js";
