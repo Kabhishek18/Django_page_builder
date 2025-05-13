@@ -5,7 +5,8 @@ from colorfield.fields import ColorField
 import os
 import json
 from django.core.exceptions import ValidationError
-
+from django.db.models.signals import post_migrate
+from django.dispatch import receiver
 
 
 class Theme(models.Model):
@@ -247,3 +248,46 @@ class Template(models.Model):
         
         with open(filepath, 'w', encoding='utf-8') as file:
             file.write(self.content)            
+
+
+@receiver(post_migrate)
+def create_themes_tables(sender, **kwargs):
+    """
+    Ensure the themes tables are created before they're accessed
+    This helps prevent issues with circular dependencies during migrations
+    """
+    if sender.name == 'themes':
+        from django.db import connection
+        cursor = connection.cursor()
+        
+        # Check if Template table exists
+        cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='themes_template';
+        """)
+        
+        if not cursor.fetchone():
+            # Create the table manually if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS "themes_template" (
+                    "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
+                    "name" varchar(100) NOT NULL, 
+                    "slug" varchar(50) NOT NULL UNIQUE, 
+                    "type" varchar(10) NOT NULL, 
+                    "description" text NOT NULL, 
+                    "content" text NOT NULL, 
+                    "created_at" datetime NOT NULL, 
+                    "updated_at" datetime NOT NULL
+                );
+            """)
+            
+            # Also update the SQLite sequence
+            cursor.execute("""
+                INSERT OR IGNORE INTO sqlite_sequence (name, seq) 
+                VALUES ('themes_template', 0);
+            """)
+            
+            connection.commit()
+            print("Created themes_template table")
+
+            

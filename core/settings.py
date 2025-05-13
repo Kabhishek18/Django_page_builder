@@ -36,13 +36,16 @@ INSTALLED_APPS = [
     'colorfield',  # Color picker field
     'storages',  # For AWS S3
     'django_cleanup.apps.CleanupConfig',  # Automatically delete files
+    'rest_framework', # REST framework for APIs
+    
     
     # Project apps
     'portfolio.apps.PortfolioConfig',
     'pagebuilder.apps.PagebuilderConfig',
     'themes.apps.ThemesConfig',
-    'media.apps.MediaConfig',
     'jitsi.apps.JitsiConfig',
+    'messaging.apps.MessagingConfig',
+
 ]
 
 MIDDLEWARE = [
@@ -131,9 +134,11 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media_files')
 # Configure Jitsi settings
 # Jitsi Configuration for Docker installation
-JITSI_DOMAIN = 'localhost:8443'  # Change to your Docker Jitsi domain/port
-JITSI_APP_ID = 'jitsi'           # Default value that will work without JWT
-JITSI_APP_SECRET = 'secret'      # Default value that will work without JWT
+# Configure Jitsi settings
+JITSI_DOMAIN = '127.0.0.1:8000'  # Use the HTTP port that you confirmed is working
+JITSI_APP_ID = 'jitsi'  
+JITSI_APP_SECRET = 'secret'
+JITSI_ENABLED = True  # Default value that will work without JWT
 # If AWS credentials are provided, use S3 for static and media files
 # AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 # AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')

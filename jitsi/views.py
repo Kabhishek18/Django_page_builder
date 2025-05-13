@@ -4,7 +4,7 @@ import uuid
 import time
 import jwt
 from datetime import datetime, timedelta
-
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
@@ -22,6 +22,8 @@ from .services import (
     get_absolute_logo_url, 
     prepare_logo_config
 )
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def dashboard(request):
@@ -133,118 +135,136 @@ def room_detail(request, room_id):
 @login_required
 def join_meeting(request, room_id):
     """
-    Join a Jitsi meeting with improved logo handling
+    Join a Jitsi meeting with improved error handling and debugging
     """
-    room = get_object_or_404(JitsiRoom, id=room_id)
-    meeting = room.meetings.order_by('-created_at').first()
+    logger.info(f"Joining meeting room_id={room_id}")
     
-    # Determine user role
-    role = 'moderator' if room.creator == request.user else 'attendee'
-    
-    # Create or update participant record
-    participant, created = JitsiParticipant.objects.get_or_create(
-        room=room,
-        user=request.user,
-        defaults={
-            'name': request.user.get_full_name() or request.user.username,
-            'email': request.user.email,
-            'role': role
-        }
-    )
-    
-    if not created:
-        # Update the joined_at time and clear left_at
-        participant.joined_at = timezone.now()
-        participant.left_at = None
-        participant.save()
-    
-    # If the meeting is scheduled and this is the creator joining
-    if room.status == 'scheduled' and room.creator == request.user:
-        room.status = 'active'
-        room.save()
+    try:
+        # Get the room or return a 404
+        room = get_object_or_404(JitsiRoom, id=room_id)
+        meeting = room.meetings.order_by('-created_at').first()
         
-        if meeting:
-            meeting.started_at = timezone.now()
-            meeting.save()
-    
-    # Generate JWT token for authenticated access
-    domain = settings.JITSI_DOMAIN
-    app_id = settings.JITSI_APP_ID
-    app_secret = settings.JITSI_APP_SECRET
-    
-    # Use room ID for token authentication
-    token = generate_jwt_token(
-        domain=domain,
-        app_id=app_id,
-        app_secret=app_secret,
-        room_name=str(room.id),  # Use room ID for authentication
-        user_id=str(request.user.id),
-        user_name=request.user.get_full_name() or request.user.username,
-        email=request.user.email,
-        is_moderator=(role == 'moderator')
-    )
-    
-    # Get room configuration
-    room_config = get_jitsi_config(meeting)
-    
-    # Ensure room_config is a dictionary
-    if not isinstance(room_config, dict):
-        room_config = {}
-    
-    # Add subject to config to display proper meeting name
-    room_config.update({
-        'subject': room.name,  # Set the meeting subject to room name
-        'roomDisplayName': room.name,  # Set display name
-        'prejoinConfig': {
-            'enabled': True,
-            'hideDisplayName': False
+        # Check if Jitsi is enabled
+        if not getattr(settings, 'JITSI_ENABLED', True):
+            return render(request, 'jitsi/jitsi_disabled.html')
+            
+        logger.info(f"Room found: {room.name}, meeting ID: {meeting.id if meeting else 'None'}")
+        
+        # Determine user role
+        role = 'moderator' if room.creator == request.user else 'attendee'
+        logger.info(f"User role: {role}")
+        
+        # Create or update participant record
+        participant, created = JitsiParticipant.objects.get_or_create(
+            room=room,
+            user=request.user,
+            defaults={
+                'name': request.user.get_full_name() or request.user.username,
+                'email': request.user.email,
+                'role': role
+            }
+        )
+        
+        if not created:
+            # Update the joined_at time and clear left_at
+            participant.joined_at = timezone.now()
+            participant.left_at = None
+            participant.save()
+        
+        # If the meeting is scheduled and this is the creator joining
+        if room.status == 'scheduled' and room.creator == request.user:
+            room.status = 'active'
+            room.save()
+            
+            if meeting:
+                meeting.started_at = timezone.now()
+                meeting.save()
+        
+        # Generate JWT token for authenticated access
+        domain = settings.JITSI_DOMAIN
+        app_id = settings.JITSI_APP_ID
+        app_secret = settings.JITSI_APP_SECRET
+        
+        logger.info(f"Using Jitsi settings - domain: {domain}, app_id: {app_id}")
+        
+        # Use room ID for token authentication
+        token = generate_jwt_token(
+            domain=domain,
+            app_id=app_id,
+            app_secret=app_secret,
+            room_name=str(room.id),  # Use room ID for authentication
+            user_id=str(request.user.id),
+            user_name=request.user.get_full_name() or request.user.username,
+            email=request.user.email,
+            is_moderator=(role == 'moderator')
+        )
+        
+        # Get room configuration
+        try:
+            room_config = get_jitsi_config(meeting) if meeting else {}
+            logger.info(f"Got room config: {type(room_config)}")
+        except Exception as e:
+            logger.error(f"Error getting room config: {e}")
+            room_config = {}
+        
+        # Ensure room_config is a dictionary
+        if not isinstance(room_config, dict):
+            logger.warning(f"room_config is not a dict, it's a {type(room_config)}")
+            room_config = {}
+        
+        # Add subject to config to display proper meeting name
+        room_config.update({
+            'subject': room.name,  # Set the meeting subject to room name
+            'roomDisplayName': room.name,  # Set display name
+            'prejoinConfig': {
+                'enabled': True,
+                'hideDisplayName': False
+            }
+        })
+        
+        # Get logo configuration, if available
+        try:
+            logo_config = prepare_logo_config(request, meeting)
+            room_config.update(logo_config)
+        except Exception as e:
+            logger.error(f"Error preparing logo config: {e}")
+            
+        # Create interface config with safe defaults
+        interface_config = {
+            'SHOW_JITSI_WATERMARK': False,
+            'SHOW_WATERMARK_FOR_GUESTS': False,
+            'DEFAULT_BACKGROUND': '#ffffff',
+            'HIDE_INVITE_MORE_HEADER': True,
+            'TOOLBAR_BUTTONS': [
+                'microphone', 'camera', 'desktop', 'fullscreen',
+                'fodeviceselection', 'hangup', 'profile', 'chat',
+                'settings', 'raisehand', 'videoquality', 'filmstrip',
+                'tileview'
+            ]
         }
-    })
-    
-    # Get logo configuration using helper function
-    logo_config = prepare_logo_config(request, meeting)
-    
-    # Merge logo configuration with room configuration
-    room_config.update({
-        'brandingDataUrl': logo_config.get('brandingDataUrl', ''),
-        'watermark': logo_config.get('watermark', {}),
-        'defaultLogoUrl': logo_config.get('defaultLogoUrl', ''),
-        'logoImageUrl': logo_config.get('logoImageUrl', '')
-    })
-    
-    # Create interface config with logo settings
-    interface_config = logo_config.get('interfaceConfig', {})
-    interface_config.update({
-        'SHOW_JITSI_WATERMARK': False,
-        'SHOW_WATERMARK_FOR_GUESTS': True,
-        'DEFAULT_BACKGROUND': '#ffffff',
-        'HIDE_INVITE_MORE_HEADER': True,
-        'TOOLBAR_BUTTONS': [
-            'microphone', 'camera', 'desktop', 'fullscreen',
-            'fodeviceselection', 'hangup', 'profile', 'chat',
-            'settings', 'raisehand', 'videoquality', 'filmstrip',
-            'tileview'
-        ]
-    })
-    
-    context = {
-        'room': room,
-        'meeting': meeting,
-        'participant': participant,
-        'token': token,
-        'domain': domain,
-        'config': json.dumps(room_config),
-        'interface_config': json.dumps(interface_config),
-        'user_info': {
-            'displayName': request.user.get_full_name() or request.user.username,
-            'email': request.user.email,
-        },
-        'is_host': role == 'moderator',
-        'logo_url': logo_config.get('defaultLogoUrl', '')  # Pass logo URL to template for debugging
-    }
-    
-    return render(request, 'jitsi/join_meeting.html', context)
-
+        
+        context = {
+            'room': room,
+            'meeting': meeting,
+            'participant': participant,
+            'token': token,
+            'domain': domain,
+            'config': json.dumps(room_config),
+            'interface_config': json.dumps(interface_config),
+            'user_info': {
+                'displayName': request.user.get_full_name() or request.user.username,
+                'email': request.user.email,
+            },
+            'is_host': role == 'moderator',
+        }
+        
+        return render(request, 'jitsi/join_meeting.html', context)
+        
+    except Exception as e:
+        logger.exception(f"Error joining meeting: {e}")
+        return render(request, 'jitsi/error.html', {
+            'error_message': f"An error occurred when trying to join the meeting: {str(e)}"
+        })
 
 @login_required
 def customize_meeting(request, room_id):

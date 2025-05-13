@@ -142,21 +142,18 @@
 {% endblock %}
 
 {% block jitsi_extra_js %}
-    <script src="https://{{ domain }}/external_api.js"></script>
+    <script src="http://{{ domain }}/external_api.js"></script>
     <script>
-        // Debug info - log for troubleshooting
-        console.log("Logo URL:", "{{ logo_url }}");
-        
-        // Initialize Jitsi Meet API
         document.addEventListener('DOMContentLoaded', function() {
+            console.log("Initializing Jitsi - Domain:", "{{ domain }}");
+            
             const domain = "{{ domain }}";
             const options = {
-                roomName: "{{ room.id }}",  // Use room.id for the actual room
+                roomName: "{{ room.id }}",
                 width: "100%",
                 height: "100%",
                 parentNode: document.getElementById('jitsi-container'),
                 configOverwrite: {{ config|safe }},
-                interfaceConfigOverwrite: {{ interface_config|safe }},
                 userInfo: {
                     displayName: "{{ user_info.displayName|escapejs }}",
                     email: "{{ user_info.email|escapejs }}"
@@ -164,31 +161,46 @@
                 jwt: "{{ token }}"
             };
             
-            const api = new JitsiMeetExternalAPI(domain, options);
+            // Debug info to console
+            console.log("Jitsi options:", JSON.stringify(options, null, 2));
             
-            // Event listeners
-            api.addEventListeners({
-                videoConferenceJoined: function() {
-                    console.log('Joined the meeting');
-                },
-                videoConferenceLeft: function() {
-                    console.log('Left the meeting');
-                    // Redirect to room detail page after leaving
-                    window.location.href = "{% url 'jitsi:room_detail' room_id=room.id %}";
-                },
-                participantJoined: function(participant) {
-                    console.log('Participant joined:', participant);
-                },
-                participantLeft: function(participant) {
-                    console.log('Participant left:', participant);
-                },
-                readyToClose: function() {
-                    window.location.href = "{% url 'jitsi:room_detail' room_id=room.id %}";
-                }
-            });
-            
-            // Make API available globally for function access
-            window.jitsiApi = api;
+            try {
+                const api = new JitsiMeetExternalAPI(domain, options);
+                console.log("Jitsi API initialized successfully");
+                
+                // Event listeners
+                api.addEventListeners({
+                    videoConferenceJoined: function() {
+                        console.log('Joined the meeting');
+                    },
+                    videoConferenceLeft: function() {
+                        console.log('Left the meeting');
+                        // Redirect to room detail page after leaving
+                        window.location.href = "{% url 'jitsi:room_detail' room_id=room.id %}";
+                    },
+                    participantJoined: function(participant) {
+                        console.log('Participant joined:', participant);
+                    },
+                    participantLeft: function(participant) {
+                        console.log('Participant left:', participant);
+                    },
+                    readyToClose: function() {
+                        window.location.href = "{% url 'jitsi:room_detail' room_id=room.id %}";
+                    }
+                });
+                
+                // Make API available globally for function access
+                window.jitsiApi = api;
+            } catch (error) {
+                console.error("Error initializing Jitsi:", error);
+                document.getElementById('jitsi-container').innerHTML = 
+                    '<div class="alert alert-danger p-5 m-5">' +
+                    '<h4>Error connecting to Jitsi</h4>' +
+                    '<p>Could not connect to the Jitsi server. Please make sure the Jitsi server is running at: <code>' + domain + '</code></p>' +
+                    '<p>Error details: ' + error.message + '</p>' +
+                    '<p><a href="{% url 'jitsi:room_detail' room_id=room.id %}" class="btn btn-primary">Back to Room Details</a></p>' +
+                    '</div>';
+            }
         });
         
         // Toggle sidebar visibility

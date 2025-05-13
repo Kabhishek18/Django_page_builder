@@ -1,0 +1,59 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block jitsi_extra_head %}
+<style>
+    .disabled-container {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        max-width: 600px;
+        margin: 50px auto;
+        text-align: center;
+    }
+    
+    .disabled-icon {
+        font-size: 60px;
+        color: #6c757d;
+        margin-bottom: 20px;
+    }
+    
+    .disabled-title {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: #333;
+    }
+    
+    .disabled-actions {
+        margin-top: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block jitsi_content %}
+<div class="disabled-container">
+    <div class="disabled-icon">
+        <i class="fas fa-video-slash"></i>
+    </div>
+    
+    <h2 class="disabled-title">Jitsi Meetings Disabled</h2>
+    
+    <p>
+        The Jitsi integration is currently disabled on this server.
+        Please contact your administrator to enable Jitsi meetings.
+    </p>
+    
+    <div class="disabled-actions">
+        <a href="{% url 'jitsi:dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+    
+    <div class="mt-4">
+        <p class="text-muted">
+            To enable Jitsi meetings, set JITSI_ENABLED = True in settings.py
+        </p>
+    </div>
+</div>
+{% endblock %}

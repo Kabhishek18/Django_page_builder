@@ -140,38 +140,49 @@ class Page(models.Model):
 def get_available_templates():
     """Returns a list of available block templates for selection"""
     try:
-        # Try to get templates from the Template model if it exists
+        # Try to get templates from the Template model if it exists and the table is created
         from themes.models import Template
-        template_choices = [
-            (template.slug, template.name) 
-            for template in Template.objects.filter(type='block')
-        ]
-        
-        # Also scan the template directories for HTML files
-        block_dir = os.path.join(settings.BASE_DIR, 'templates', 'blocks')
-        if os.path.exists(block_dir):
-            for file in os.listdir(block_dir):
-                if file.endswith('.html'):
-                    template_name = file[:-5]  # Remove .html
-                    # Don't add if already in the list
-                    if not any(template_name == slug for slug, _ in template_choices):
-                        display_name = template_name.replace('_', ' ').title()
-                        template_choices.append((template_name, display_name))
-        
-        return template_choices
+        try:
+            template_choices = [
+                (template.slug, template.name) 
+                for template in Template.objects.filter(type='block')
+            ]
+            
+            # Also scan the template directories for HTML files
+            block_dir = os.path.join(settings.BASE_DIR, 'templates', 'blocks')
+            if os.path.exists(block_dir):
+                for file in os.listdir(block_dir):
+                    if file.endswith('.html'):
+                        template_name = file[:-5]  # Remove .html
+                        # Don't add if already in the list
+                        if not any(template_name == slug for slug, _ in template_choices):
+                            display_name = template_name.replace('_', ' ').title()
+                            template_choices.append((template_name, display_name))
+            
+            return template_choices
+        except Exception as e:
+            # If there's a database error (e.g., table doesn't exist yet), fall back to scanning directories
+            print(f"Database error when accessing Template model: {e}")
+            return get_template_choices_from_files()
     except (ImportError, ModuleNotFoundError):
         # If Template model doesn't exist, just scan directories
-        block_dir = os.path.join(settings.BASE_DIR, 'templates', 'blocks')
-        template_choices = []
-        
-        if os.path.exists(block_dir):
-            for file in os.listdir(block_dir):
-                if file.endswith('.html'):
-                    template_name = file[:-5]  # Remove .html
-                    display_name = template_name.replace('_', ' ').title()
-                    template_choices.append((template_name, display_name))
-        
-        return template_choices
+        return get_template_choices_from_files()
+
+def get_template_choices_from_files():
+    """Get template choices by scanning template directories"""
+    block_dir = os.path.join(settings.BASE_DIR, 'templates', 'blocks')
+    template_choices = []
+    
+    if os.path.exists(block_dir):
+        for file in os.listdir(block_dir):
+            if file.endswith('.html'):
+                template_name = file[:-5]  # Remove .html
+                display_name = template_name.replace('_', ' ').title()
+                template_choices.append((template_name, display_name))
+    
+    return template_choices
+
+# Block Model Fix in pagebuilder/models.py
 
 class Block(models.Model):
     """
@@ -191,11 +202,13 @@ class Block(models.Model):
         ('wysiwyg', _('WYSIWYG Editor')),
     )
     type = models.CharField(_('Type'), max_length=20, choices=BLOCK_TYPE_CHOICES, default='template')
+    
+    # Change the template_name field to avoid querying Template model during migrations
     template_name = models.CharField(
         _('Template Name'), 
         max_length=100, 
         blank=True,
-        choices=get_available_templates,
+        # Instead of using the function directly as choices, set choices at runtime
         help_text=_('Select which template to use if type is template')
     )
     
@@ -272,3 +285,9 @@ class Block(models.Model):
         if self.padding_right is not None:
             style += f"padding-right: {self.padding_right}px; "
         return style.strip()
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set choices at runtime to avoid database access during migrations
+        from django.db.models.fields import BLANK_CHOICE_DASH
+        self._meta.get_field('template_name')._choices = BLANK_CHOICE_DASH + list(get_available_templates())

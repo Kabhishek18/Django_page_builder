@@ -1,8 +1,13 @@
-/* embed.css - Styles for the embedded meeting view */
+/* static/jitsi/css/embed.css */
 
-html, body {
+/* Basic reset */
+* {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
@@ -15,6 +20,7 @@ html, body {
     background-color: #1a1a1a;
 }
 
+/* Loading indicator */
 .loading-container {
     position: absolute;
     top: 0;
@@ -25,18 +31,18 @@ html, body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background-color: #fff;
+    background-color: rgba(255, 255, 255, 0.9);
     z-index: 1000;
     transition: opacity 0.5s ease;
 }
 
 .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #f3f3f3;
-    border-top: 5px solid #3498db;
+    width: 60px;
+    height: 60px;
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #3498db;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 1.5s linear infinite;
 }
 
 @keyframes spin {
@@ -46,74 +52,59 @@ html, body {
 
 .loading-text {
     margin-top: 20px;
-    font-size: 16px;
+    font-size: 18px;
     color: #333;
+    font-weight: 500;
 }
 
-.branding {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    z-index: 10;
-}
-
-.branding img {
-    height: 40px;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-
-.branding img:hover {
-    opacity: 1;
-}
-
+/* Error styles */
 .error-container {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background-color: #fff;
-    z-index: 900;
-    padding: 20px;
-    box-sizing: border-box;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 600px;
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     text-align: center;
+    z-index: 1001;
 }
 
 .error-icon {
     font-size: 48px;
-    color: #e74c3c;
     margin-bottom: 20px;
 }
 
 .error-title {
     font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 16px;
     color: #333;
-    margin-bottom: 10px;
 }
 
 .error-message {
     font-size: 16px;
+    line-height: 1.5;
+    margin-bottom: 24px;
     color: #666;
-    margin-bottom: 20px;
-    max-width: 600px;
 }
 
-.action-button {
+.btn-primary {
     display: inline-block;
-    padding: 10px 20px;
     background-color: #3498db;
     color: white;
-    border-radius: 4px;
+    font-weight: 600;
     text-decoration: none;
-    font-weight: 500;
+    padding: 12px 24px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
     transition: background-color 0.2s;
 }
 
-.action-button:hover {
+.btn-primary:hover {
     background-color: #2980b9;
 }

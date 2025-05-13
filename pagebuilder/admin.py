@@ -7,6 +7,8 @@ from django.forms import TextInput, Select, Textarea
 from .models import Page, Block, get_available_templates
 from django import forms  
 
+# Fix pagebuilder/admin.py to handle the template_name field properly
+
 class BlockInline(admin.StackedInline):
     """Inline editor for blocks within a page"""
     model = Block
@@ -45,17 +47,18 @@ class BlockInline(admin.StackedInline):
         )
         
         return formset
+        
     def formfield_for_dbfield(self, db_field, **kwargs):
         """Customize the form fields"""
         formfield = super().formfield_for_dbfield(db_field, **kwargs)
         
         if db_field.name == 'template_name':
             # Refresh template choices every time
-            formfield.choices = get_available_templates()
+            choices = get_available_templates()
             
             # Add a preview image option if exists
             formfield.widget = forms.Select(
-                choices=formfield.choices,
+                choices=choices,
                 attrs={'class': 'template-select'}
             )
             
@@ -106,11 +109,11 @@ class BlockAdmin(admin.ModelAdmin):
         
         if db_field.name == 'template_name':
             # Refresh template choices every time
-            formfield.choices = get_available_templates()
+            choices = get_available_templates()
             
             # Add a preview image option if exists
             formfield.widget = forms.Select(
-                choices=formfield.choices,
+                choices=choices,
                 attrs={'class': 'template-select'}
             )
             
@@ -118,7 +121,7 @@ class BlockAdmin(admin.ModelAdmin):
     
     class Media:
         js = ('js/block_admin.js',)
-
+        
 
 @admin.register(Page)
 class PageAdmin(admin.ModelAdmin):

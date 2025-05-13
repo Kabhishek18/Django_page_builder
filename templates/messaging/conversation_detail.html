@@ -1,0 +1,1221 @@
+{# templates/messaging/conversation_detail.html - Updated Version #}
+{% extends 'messaging/base_messaging.html' %}
+{% load static %}
+{% load messaging_filters %}
+
+{% block messaging_extra_head %}
+<link rel="stylesheet" href="{% static 'messaging/css/messaging.css' %}">
+{% endblock %}
+
+{% block sidebar_content %}
+<div class="conversation-list">
+    {% for conversation in conversations %}
+    <div class="conversation-item {% if conversation.id == active_conversation.id %}active{% endif %} {% if conversation.unread_count > 0 %}unread{% endif %}" 
+         data-conversation-id="{{ conversation.id }}"
+         data-conversation-type="{{ conversation.type }}">
+        <div class="avatar-container">
+            {% if conversation.image %}
+                <img src="{{ conversation.image.url }}" alt="{{ conversation.name }}" class="avatar">
+            {% elif conversation.type == 'group' %}
+                <div class="avatar avatar-group">
+                    <i class="fas fa-users"></i>
+                </div>
+            {% elif conversation.type == 'broadcast' %}
+                <div class="avatar avatar-broadcast">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+            {% else %}
+                <div class="avatar">
+                    {% for participant in conversation.participants.all %}
+                        {% if participant.user != request.user %}
+                            {{ participant.user.username|make_initials }}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% if conversation.type == 'private' %}
+                {% for participant in conversation.participants.all %}
+                    {% if participant.user != request.user %}
+                        <span class="status-indicator {% if participant.user.is_active %}online{% else %}offline{% endif %}"></span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+        
+        <div class="conversation-details">
+            <div class="conversation-header">
+                <div class="conversation-name">
+                    {% if conversation.name %}
+                        {{ conversation.name }}
+                    {% elif conversation.type == 'private' %}
+                        {% for participant in conversation.participants.all %}
+                            {% if participant.user != request.user %}
+                                {{ participant.user.username }}
+                            {% endif %}
+                        {% empty %}
+                            Private Chat
+                        {% endfor %}
+                    {% else %}
+                        {{ conversation.get_type_display }} #{{ conversation.id }}
+                    {% endif %}
+                </div>
+                <div class="conversation-time">
+                    {% if conversation.last_message %}
+                        {{ conversation.last_message.timestamp|time_ago }}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="conversation-preview">
+                {% if conversation.last_message.is_deleted %}
+                    <span class="text-muted"><i>This message was deleted</i></span>
+                {% elif conversation.last_message %}
+                    {% if conversation.last_message.sender == user %}
+                        <span class="text-muted">You:</span>
+                    {% else %}
+                        <span class="text-muted">{{ conversation.last_message.sender.username }}:</span>
+                    {% endif %}
+                    {% if conversation.last_message.attachment %}
+                        <i class="fas fa-paperclip"></i>
+                        {% if conversation.last_message.content %}
+                            {{ conversation.last_message.content|truncatechars:40 }}
+                        {% else %}
+                            Sent an attachment
+                        {% endif %}
+                    {% else %}
+                        {{ conversation.last_message.content|truncatechars:50 }}
+                    {% endif %}
+                {% else %}
+                    <span class="text-muted">No messages yet</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if conversation.unread_count > 0 %}
+        <div class="unread-badge">
+            {{ conversation.unread_count }}
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="empty-conversations">
+        <i class="fas fa-comments"></i>
+        <p>No conversations yet.</p>
+        <p>Start a new conversation using the buttons above.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block messaging_content %}
+<meta name="conversation-id" content="{{ conversation.id }}">
+
+<!-- Conversation Header -->
+<div class="conversation-header">
+    <div class="conversation-title">
+        {% if conversation.image %}
+            <img src="{{ conversation.image.url }}" alt="{{ conversation.name }}" class="avatar">
+        {% elif conversation.type == 'group' %}
+            <div class="avatar">
+                <i class="fas fa-users"></i>
+            </div>
+        {% elif conversation.type == 'private' %}
+            <div class="avatar">
+                {% for participant in conversation.participants.all %}
+                    {% if participant.user != request.user %}
+                        {{ participant.user.username|make_initials }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <div>
+            <div>
+                {% if conversation.name %}
+                    {{ conversation.name }}
+                {% elif conversation.type == 'private' %}
+                    {% for participant in conversation.participants.all %}
+                        {% if participant.user != request.user %}
+                            {{ participant.user.username }}
+                            <span class="status-text {% if participant.user.is_active %}online{% else %}offline{% endif %}">
+                                {% if participant.user.is_active %}Active now{% else %}Offline{% endif %}
+                            </span>
+                        {% endif %}
+                    {% empty %}
+                        Private Chat
+                    {% endfor %}
+                {% else %}
+                    {{ conversation.get_type_display }}
+                {% endif %}
+            </div>
+            
+            {% if conversation.type == 'group' %}
+                <div class="participants-list">
+                    <small>
+                        {{ participants.count }} participants{% if participants.count <= 5 %}:
+                        {% for participant in participants|slice:":5" %}
+                            {{ participant.user.username }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                        {% else %} {% endif %}
+                    </small>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="conversation-actions">
+        {% if conversation.type == 'group' and is_admin %}
+            <a href="{% url 'messaging:manage_group' conversation_id=conversation.id %}" class="btn btn-outline-primary">
+                <i class="fas fa-cog"></i>
+                <span>Manage</span>
+            </a>
+        {% endif %}
+        <button type="button" class="btn btn-outline-secondary" id="info-button">
+            <i class="fas fa-info-circle"></i>
+            <span>Info</span>
+        </button>
+    </div>
+</div>
+
+<!-- Messages Container -->
+<div class="message-container" id="message-container">
+    <!-- Load More Button -->
+    {% if messages.has_previous %}
+    <button id="load-more-btn" class="load-more-messages">
+        <i class="fas fa-arrow-up"></i> Load older messages
+    </button>
+    {% endif %}
+    
+    <!-- Date divider for first message -->
+    {% if messages %}
+        {% with first_message=messages.0 %}
+        <div class="message-date-divider">
+            <span>{{ first_message.timestamp|date:"F j, Y" }}</span>
+        </div>
+        {% endwith %}
+    {% endif %}
+    
+    <!-- Messages -->
+    {% for message in messages %}
+        <!-- Check if need to add a new date divider -->
+        {% if forloop.counter > 1 %}
+            {% with previous_message=messages|slice:":"|get_item:forloop.counter0|add:"-1" %}
+                {% if message.timestamp|date:"F j, Y" != previous_message.timestamp|date:"F j, Y" %}
+                    <div class="message-date-divider">
+                        <span>{{ message.timestamp|date:"F j, Y" }}</span>
+                    </div>
+                {% endif %}
+            {% endwith %}
+        {% endif %}
+        
+        <!-- Message -->
+        <div class="message-item {% if message.sender == user %}self{% endif %}" id="message-{{ message.id }}" data-message-id="{{ message.id }}" data-sender-id="{{ message.sender.id }}">
+            <div class="message-bubble">
+                {% if message.sender != user and conversation.type != 'private' %}
+                    <div class="message-sender">{{ message.sender.username }}</div>
+                {% endif %}
+                
+                <!-- Message content -->
+                <div class="message-content">
+                    {% if message.is_deleted %}
+                        <span class="message-deleted"><i class="fas fa-ban"></i> This message has been deleted</span>
+                    {% else %}
+                        {{ message.content|safe|linebreaksbr_with_urls|highlight_mentions:user.id }}
+                        
+                        <!-- Message attachment -->
+                        {% if message.attachment %}
+                            <div class="message-attachment">
+                                {% if message.attachment_type == 'image' %}
+                                    <img src="{{ message.attachment.url }}" alt="Attachment" loading="lazy" class="attachment-image">
+                                {% elif message.attachment_type == 'document' %}
+                                    <a href="{{ message.attachment.url }}" target="_blank" class="attachment-link">
+                                        <i class="fas fa-file-alt attachment-icon"></i>
+                                        {{ message.attachment.name|format_attachment_name }}
+                                    </a>
+                                {% elif message.attachment_type == 'video' %}
+                                    <a href="{{ message.attachment.url }}" target="_blank" class="attachment-link">
+                                        <i class="fas fa-video attachment-icon"></i>
+                                        {{ message.attachment.name|format_attachment_name }}
+                                    </a>
+                                {% elif message.attachment_type == 'audio' %}
+                                    <a href="{{ message.attachment.url }}" target="_blank" class="attachment-link">
+                                        <i class="fas fa-volume-up attachment-icon"></i>
+                                        {{ message.attachment.name|format_attachment_name }}
+                                    </a>
+                                {% else %}
+                                    <a href="{{ message.attachment.url }}" target="_blank" class="attachment-link">
+                                        <i class="fas fa-paperclip attachment-icon"></i>
+                                        {{ message.attachment.name|format_attachment_name }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                
+                <!-- Message timestamp and status -->
+                <div class="message-time">
+                    {{ message.timestamp|date:"g:i A" }}
+                    
+                    {% if message.is_edited %}
+                        <span class="message-edited">(edited)</span>
+                    {% endif %}
+                    
+                    {% if message.sender == user %}
+                        <span class="message-status">
+                            {% if message.is_read %}
+                                <i class="fas fa-check-double"></i>
+                            {% else %}
+                                <i class="fas fa-check"></i>
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Message actions -->
+                {% if message.sender == user and not message.is_deleted %}
+                    <div class="message-actions">
+                        <button type="button" class="btn btn-sm btn-link edit-message-btn" data-message-id="{{ message.id }}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-link delete-message-btn" data-message-id="{{ message.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% empty %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-comment-dots"></i>
+            </div>
+            <h3>No messages yet</h3>
+            <p>Send a message to start the conversation.</p>
+        </div>
+    {% endfor %}
+    
+    <!-- Typing indicator -->
+    <div class="typing-indicator" id="typing-indicator" style="display: none;">
+        <span>Someone is typing</span>
+        <div class="dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Message Input Form -->
+<div class="message-input-container">
+    <!-- Attachment preview -->
+    <div class="attachment-preview" id="attachment-preview" style="display: none;">
+        <div id="attachment-name"></div>
+        <button type="button" class="btn btn-sm btn-link text-danger" id="remove-attachment">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    
+    <!-- Message form -->
+    <form method="post" action="{% url 'messaging:send_message' conversation_id=conversation.id %}" 
+          enctype="multipart/form-data" id="message-form" class="message-form">
+        {% csrf_token %}
+        
+        <div class="input-group">
+            <button type="button" class="btn btn-outline-secondary emoji-button">
+                <i class="far fa-smile"></i>
+            </button>
+            
+            <textarea name="content" id="message-input" class="form-control" placeholder="Type a message..." rows="1" required></textarea>
+            
+            <input type="file" name="attachment" id="attachment-input" style="display: none;" onchange="handleFileSelect(event)">
+            <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('attachment-input').click()">
+                <i class="fas fa-paperclip"></i>
+            </button>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Side panel for conversation info -->
+<div class="conversation-sidebar" id="conversation-sidebar">
+    <div class="sidebar-header">
+        <h4>Conversation Info</h4>
+        <button type="button" class="sidebar-close" id="close-sidebar">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sidebar-content">
+        {% if conversation.image %}
+            <div class="text-center mb-3">
+                <img src="{{ conversation.image.url }}" alt="{{ conversation.name }}" class="conversation-image">
+            </div>
+        {% endif %}
+        
+        <h5>
+            {% if conversation.name %}
+                {{ conversation.name }}
+            {% elif conversation.type == 'private' %}
+                {% for participant in conversation.participants.all %}
+                    {% if participant.user != request.user %}
+                        {{ participant.user.username }}
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                {{ conversation.get_type_display }}
+            {% endif %}
+        </h5>
+        
+        {% if conversation.description %}
+            <p>{{ conversation.description }}</p>
+        {% endif %}
+        
+        <h6>Created</h6>
+        <p>{{ conversation.created_at|date:"F j, Y" }}</p>
+        
+        {% if conversation.type != 'private' %}
+            <h6>Participants ({{ participants.count }})</h6>
+            <div class="participant-list">
+                {% for participant in participants %}
+                    <div class="participant-item">
+                        <div class="participant-info">
+                            <div class="avatar">
+                                {{ participant.user.username|make_initials }}
+                            </div>
+                            <div>
+                                {{ participant.user.username }}
+                                {% if participant.is_admin %}
+                                    <span class="admin-badge">Admin</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        {% if conversation.type == 'private' %}
+            <h6>Shared Media</h6>
+            <div class="shared-media">
+                {% for message in conversation.messages.all %}
+                    {% if message.attachment_type == 'image' and message.attachment %}
+                        <div class="shared-media-item">
+                            <img src="{{ message.attachment.url }}" alt="Shared media">
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="text-muted">No shared media</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <h6>Share this conversation</h6>
+        <div class="meeting-link-container">
+            <div id="meeting-link">https://yourdomain.com/messaging/conversation/{{ conversation.id }}/</div>
+            <button class="btn btn-sm btn-outline-primary copy-to-clipboard" onclick="copyConversationLink()">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Message Modal -->
+<div class="modal fade" id="editMessageModal" tabindex="-1" aria-labelledby="editMessageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editMessageModalLabel">Edit Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-message-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <textarea class="form-control" id="edit-message-content" rows="3" required></textarea>
+                    </div>
+                    <input type="hidden" id="edit-message-id">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-edit-button">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Message Modal -->
+<div class="modal fade" id="deleteMessageModal" tabindex="-1" aria-labelledby="deleteMessageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteMessageModalLabel">Delete Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this message? This action cannot be undone.</p>
+                <input type="hidden" id="delete-message-id">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-button">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Lightbox Modal -->
+<div class="modal fade" id="imageLightbox" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-body p-0 text-center">
+                <img id="lightbox-image" class="img-fluid rounded" src="" alt="Image preview">
+            </div>
+            <button type="button" class="position-absolute top-0 end-0 btn btn-dark rounded-circle m-2" data-bs-dismiss="modal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block messaging_extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize variables
+    const messageContainer = document.getElementById('message-container');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const conversationId = document.querySelector('meta[name="conversation-id"]').content;
+    const infoButton = document.getElementById('info-button');
+    const conversationSidebar = document.getElementById('conversation-sidebar');
+    const closeSidebarBtn = document.getElementById('close-sidebar');
+    const attachmentInput = document.getElementById('attachment-input');
+    const attachmentPreview = document.getElementById('attachment-preview');
+    const attachmentName = document.getElementById('attachment-name');
+    const removeAttachment = document.getElementById('remove-attachment');
+    let typingTimeout;
+    let lastMessageId = null;
+    
+    // Scroll to bottom of message container initially
+    scrollToBottom();
+    
+    // Info sidebar toggle
+    if (infoButton && conversationSidebar && closeSidebarBtn) {
+        infoButton.addEventListener('click', function() {
+            conversationSidebar.classList.toggle('show');
+        });
+        
+        closeSidebarBtn.addEventListener('click', function() {
+            conversationSidebar.classList.remove('show');
+        });
+        
+        // Close sidebar when clicking outside
+        document.addEventListener('click', function(e) {
+            if (conversationSidebar.classList.contains('show') &&
+                !conversationSidebar.contains(e.target) &&
+                e.target !== infoButton &&
+                !infoButton.contains(e.target)) {
+                conversationSidebar.classList.remove('show');
+            }
+        });
+    }
+    
+    // Auto-resize message input
+    if (messageInput) {
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+            
+            // Simulated typing indicator
+            clearTimeout(typingTimeout);
+            
+            // Show typing indicator to other users (would be through WebSockets in real implementation)
+            // Here we're just simulating it for the UI
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator && this.value.trim() !== '') {
+                typingIndicator.style.display = 'flex';
+                
+                typingTimeout = setTimeout(() => {
+                    typingIndicator.style.display = 'none';
+                }, 3000);
+            }
+        });
+        
+        // Initial resize
+        messageInput.dispatchEvent(new Event('input'));
+    }
+    
+    // Handle form submission with AJAX
+    if (messageForm) {
+        messageForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Don't send empty messages
+            const messageContent = messageInput.value.trim();
+            if (!messageContent && !attachmentInput.files.length) {
+                return;
+            }
+            
+            // Show sending indicator
+            const sendButton = this.querySelector('button[type="submit"]');
+            const originalBtnHtml = sendButton.innerHTML;
+            sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            sendButton.disabled = true;
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Reset form and input height
+                    messageForm.reset();
+                    messageInput.style.height = 'auto';
+                    
+                    // Hide attachment preview
+                    attachmentPreview.style.display = 'none';
+                    
+                    // Add the new message to the chat
+                    appendNewMessage(data.message);
+                    
+                    // Hide typing indicator
+                    document.getElementById('typing-indicator').style.display = 'none';
+                    
+                    // Scroll to bottom
+                    scrollToBottom();
+                } else {
+                    showToast('Error sending message: ' + data.errors, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+                showToast('Error sending message. Please try again.', 'error');
+            })
+            .finally(() => {
+                // Restore button state
+                sendButton.innerHTML = originalBtnHtml;
+                sendButton.disabled = false;
+            });
+        });
+    }
+    
+    // Load more messages
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', function() {
+            // Show loading indicator
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            this.disabled = true;
+            
+            // Get the first message id as lastId
+            const firstMessage = document.querySelector('.message-item');
+            if (!firstMessage) return;
+            
+            const lastId = firstMessage.getAttribute('data-message-id');
+            
+            fetch(`/messaging/conversation/${conversationId}/messages/?last_id=${lastId}&limit=20`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Get current scroll position and height
+                    const scrollPos = messageContainer.scrollTop;
+                    const scrollHeight = messageContainer.scrollHeight;
+                    
+                    // Add messages to the top of the container
+                    prependMessages(data.messages);
+                    
+                    // Adjust scroll position to maintain relative position
+                    const newScrollHeight = messageContainer.scrollHeight;
+                    messageContainer.scrollTop = scrollPos + (newScrollHeight - scrollHeight);
+                    
+                    // Update button state
+                    this.innerHTML = '<i class="fas fa-arrow-up"></i> Load older messages';
+                    this.disabled = false;
+                    
+                    // Hide load more button if no more messages
+                    if (!data.has_more) {
+                        loadMoreBtn.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading messages:', error);
+                this.innerHTML = '<i class="fas fa-arrow-up"></i> Load older messages';
+                this.disabled = false;
+            });
+        });
+    }
+    
+    // Handle message editing
+    initializeMessageActions();
+    
+    // Handle file attachment
+    if (attachmentInput && attachmentPreview && attachmentName && removeAttachment) {
+        attachmentInput.addEventListener('change', function(e) {
+            handleFileSelect(e);
+        });
+        
+        removeAttachment.addEventListener('click', function() {
+            attachmentInput.value = '';
+            attachmentPreview.style.display = 'none';
+        });
+    }
+    
+    // Set up image lightbox for attachments
+    setupImageLightbox();
+    
+    // Mark conversation as read
+    markConversationAsRead();
+    
+    // Setup emoji picker (simulated)
+    const emojiButton = document.querySelector('.emoji-button');
+    if (emojiButton) {
+        emojiButton.addEventListener('click', function() {
+            // In a real implementation, this would show an emoji picker
+            // For this example, we'll just insert a random emoji
+            const emojis = ['😊', '👍', '🎉', '❤️', '😂', '🙌', '🤔', '👏', '🔥', '✨'];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            
+            // Insert emoji at cursor position
+            const cursorPosition = messageInput.selectionStart;
+            const textBeforeCursor = messageInput.value.substring(0, cursorPosition);
+            const textAfterCursor = messageInput.value.substring(cursorPosition);
+            
+            messageInput.value = textBeforeCursor + randomEmoji + textAfterCursor;
+            
+            // Set cursor position after emoji
+            messageInput.selectionStart = cursorPosition + randomEmoji.length;
+            messageInput.selectionEnd = cursorPosition + randomEmoji.length;
+            
+            // Trigger input event to resize textarea
+            messageInput.dispatchEvent(new Event('input'));
+            messageInput.focus();
+        });
+    }
+    
+    // Helper functions
+    function scrollToBottom() {
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+    
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            showToast('File size must be less than 10MB', 'error');
+            event.target.value = '';
+            return;
+        }
+        
+        // Show file name in preview
+        attachmentName.textContent = file.name;
+        
+        // Show preview container
+        attachmentPreview.style.display = 'flex';
+    }
+    
+    function initializeMessageActions() {
+        // Message editing
+        const editMessageBtns = document.querySelectorAll('.edit-message-btn');
+        const editMessageModal = new bootstrap.Modal(document.getElementById('editMessageModal'));
+        const editMessageForm = document.getElementById('edit-message-form');
+        const editMessageContent = document.getElementById('edit-message-content');
+        const editMessageId = document.getElementById('edit-message-id');
+        const saveEditButton = document.getElementById('save-edit-button');
+        
+        editMessageBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const messageId = this.getAttribute('data-message-id');
+                const messageElement = document.querySelector(`#message-${messageId} .message-content`);
+                
+                // Set the message content and ID in the form
+                editMessageContent.value = messageElement.innerText.trim();
+                editMessageId.value = messageId;
+                
+                // Show the modal
+                editMessageModal.show();
+            });
+        });
+        
+        if (saveEditButton) {
+            saveEditButton.addEventListener('click', function() {
+                const messageId = editMessageId.value;
+                const content = editMessageContent.value.trim();
+                
+                if (!content) return;
+                
+                // Show loading indicator
+                const originalBtnHtml = saveEditButton.innerHTML;
+                saveEditButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                saveEditButton.disabled = true;
+                
+                // Send AJAX request to edit the message
+                fetch(`/messaging/message/${messageId}/edit/`, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        'csrfmiddlewaretoken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'content': content
+                    }),
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update the message content
+                        const messageElement = document.querySelector(`#message-${messageId} .message-content`);
+                        messageElement.innerHTML = data.message.content;
+                        
+                        // Add edited indicator if not already present
+                        const timeElement = document.querySelector(`#message-${messageId} .message-time`);
+                        if (!timeElement.querySelector('.message-edited')) {
+                            timeElement.innerHTML += '<span class="message-edited">(edited)</span>';
+                        }
+                        
+                        // Hide the modal
+                        editMessageModal.hide();
+                        
+                        showToast('Message updated successfully', 'success');
+                    } else {
+                        showToast('Error editing message', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error editing message:', error);
+                    showToast('Error editing message. Please try again.', 'error');
+                })
+                .finally(() => {
+                    // Restore button state
+                    saveEditButton.innerHTML = originalBtnHtml;
+                    saveEditButton.disabled = false;
+                });
+            });
+        }
+        
+        // Message deletion
+        const deleteMessageBtns = document.querySelectorAll('.delete-message-btn');
+        const deleteMessageModal = new bootstrap.Modal(document.getElementById('deleteMessageModal'));
+        const deleteMessageId = document.getElementById('delete-message-id');
+        const confirmDeleteButton = document.getElementById('confirm-delete-button');
+        
+        deleteMessageBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const messageId = this.getAttribute('data-message-id');
+                deleteMessageId.value = messageId;
+                deleteMessageModal.show();
+            });
+        });
+        
+        if (confirmDeleteButton) {
+            confirmDeleteButton.addEventListener('click', function() {
+                const messageId = deleteMessageId.value;
+                
+                // Show loading indicator
+                const originalBtnHtml = confirmDeleteButton.innerHTML;
+                confirmDeleteButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                confirmDeleteButton.disabled = true;
+                
+                // Send AJAX request to delete the message
+                fetch(`/messaging/message/${messageId}/delete/`, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        'csrfmiddlewaretoken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }),
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update the message content to show it's deleted
+                        const messageElement = document.querySelector(`#message-${messageId} .message-content`);
+                        messageElement.innerHTML = '<span class="message-deleted"><i class="fas fa-ban"></i> This message was deleted</span>';
+                        
+                        // Remove actions
+                        const actionsElement = document.querySelector(`#message-${messageId} .message-actions`);
+                        if (actionsElement) actionsElement.remove();
+                        
+                        // Remove any attachments
+                        const attachmentElement = document.querySelector(`#message-${messageId} .message-attachment`);
+                        if (attachmentElement) attachmentElement.remove();
+                        
+                        // Hide the modal
+                        deleteMessageModal.hide();
+                        
+                        showToast('Message deleted', 'success');
+                    } else {
+                        showToast('Error deleting message', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting message:', error);
+                    showToast('Error deleting message. Please try again.', 'error');
+                })
+                .finally(() => {
+                    // Restore button state
+                    confirmDeleteButton.innerHTML = originalBtnHtml;
+                    confirmDeleteButton.disabled = false;
+                });
+            });
+        }
+    }
+    
+    function appendNewMessage(message) {
+        const isCurrentUser = message.sender === '{{ user.username }}';
+        
+        // Create message element
+        const messageElement = document.createElement('div');
+        messageElement.className = `message-item ${isCurrentUser ? 'self' : ''}`;
+        messageElement.id = `message-${message.id}`;
+        messageElement.setAttribute('data-message-id', message.id);
+        
+        let messageHTML = `
+            <div class="message-bubble">
+                ${!isCurrentUser && '{{ conversation.type }}' !== 'private' ? 
+                    `<div class="message-sender">${message.sender}</div>` : ''}
+                
+                <div class="message-content">
+                    ${message.content}
+                    
+                    ${message.has_attachment ? `
+                        <div class="message-attachment">
+                            ${message.attachment_type === 'image' ? `
+                                <img src="${message.attachment_url}" alt="Attachment" loading="lazy" class="attachment-image">
+                            ` : `
+                                <a href="${message.attachment_url}" target="_blank" class="attachment-link">
+                                    <i class="fas fa-paperclip attachment-icon"></i>
+                                    ${message.attachment_url.split('/').pop()}
+                                </a>
+                            `}
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="message-time">
+                    ${message.timestamp}
+                    
+                    ${isCurrentUser ? `
+                        <span class="message-status">
+                            <i class="fas fa-check"></i>
+                        </span>
+                    ` : ''}
+                </div>
+                
+                ${isCurrentUser ? `
+                    <div class="message-actions">
+                        <button type="button" class="btn btn-sm btn-link edit-message-btn" data-message-id="${message.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-link delete-message-btn" data-message-id="${message.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        
+        messageElement.innerHTML = messageHTML;
+        messageContainer.appendChild(messageElement);
+        
+        // Add event listeners to new buttons
+        const newEditBtn = messageElement.querySelector('.edit-message-btn');
+        const newDeleteBtn = messageElement.querySelector('.delete-message-btn');
+        const newImageAttachment = messageElement.querySelector('.attachment-image');
+        
+        if (newEditBtn) {
+            newEditBtn.addEventListener('click', function() {
+                const messageId = this.getAttribute('data-message-id');
+                const messageContent = messageElement.querySelector('.message-content').innerText.trim();
+                
+                document.getElementById('edit-message-content').value = messageContent;
+                document.getElementById('edit-message-id').value = messageId;
+                
+                new bootstrap.Modal(document.getElementById('editMessageModal')).show();
+            });
+        }
+        
+        if (newDeleteBtn) {
+            newDeleteBtn.addEventListener('click', function() {
+                const messageId = this.getAttribute('data-message-id');
+                document.getElementById('delete-message-id').value = messageId;
+                new bootstrap.Modal(document.getElementById('deleteMessageModal')).show();
+            });
+        }
+        
+        if (newImageAttachment) {
+            newImageAttachment.addEventListener('click', function() {
+                openImageInLightbox(this.src);
+            });
+        }
+    }
+    
+    function prependMessages(messages) {
+        // Create container for new messages
+        const tempContainer = document.createDocumentFragment();
+        
+        // Add messages in reverse order (oldest first)
+        messages.reverse().forEach(message => {
+            const isCurrentUser = message.sender_id === {{ user.id }};
+            
+            // Check if need to add date divider
+            const messageDate = new Date(message.timestamp.split(',')[0]).toDateString();
+            const firstMessageElement = document.querySelector('.message-item');
+            
+            if (firstMessageElement) {
+                const firstMessageDate = new Date(firstMessageElement.querySelector('.message-time').textContent).toDateString();
+                
+                if (messageDate !== firstMessageDate) {
+                    // Add date divider
+                    const dateDivider = document.createElement('div');
+                    dateDivider.className = 'message-date-divider';
+                    dateDivider.innerHTML = `<span>${message.timestamp.split(',')[0]}</span>`;
+                    tempContainer.appendChild(dateDivider);
+                }
+            }
+            
+            // Create message element
+            const messageElement = document.createElement('div');
+            messageElement.className = `message-item ${isCurrentUser ? 'self' : ''}`;
+            messageElement.id = `message-${message.id}`;
+            messageElement.setAttribute('data-message-id', message.id);
+            messageElement.setAttribute('data-sender-id', message.sender_id);
+            
+            let messageHTML = `
+                <div class="message-bubble">
+                    ${!isCurrentUser && '{{ conversation.type }}' !== 'private' ? 
+                        `<div class="message-sender">${message.sender_name}</div>` : ''}
+                    
+                    <div class="message-content">
+                        ${message.is_deleted ? 
+                            `<span class="message-deleted"><i class="fas fa-ban"></i> This message has been deleted</span>` : 
+                            `${message.content}
+                            
+                            ${message.has_attachment ? `
+                                <div class="message-attachment">
+                                    ${message.attachment_type === 'image' ? `
+                                        <img src="${message.attachment_url}" alt="Attachment" loading="lazy" class="attachment-image">
+                                    ` : `
+                                        <a href="${message.attachment_url}" target="_blank" class="attachment-link">
+                                            <i class="fas fa-paperclip attachment-icon"></i>
+                                            ${message.attachment_url.split('/').pop()}
+                                        </a>
+                                    `}
+                                </div>
+                            ` : ''}`
+                        }
+                    </div>
+                    
+                    <div class="message-time">
+                        ${message.timestamp.split(',')[1]}
+                        
+                        ${message.is_edited ? `
+                            <span class="message-edited">(edited)</span>
+                        ` : ''}
+                        
+                        ${isCurrentUser ? `
+                            <span class="message-status">
+                                <i class="fas fa-${message.is_read ? 'check-double' : 'check'}"></i>
+                            </span>
+                        ` : ''}
+                    </div>
+                    
+                    ${isCurrentUser && !message.is_deleted ? `
+                        <div class="message-actions">
+                            <button type="button" class="btn btn-sm btn-link edit-message-btn" data-message-id="${message.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link delete-message-btn" data-message-id="${message.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            messageElement.innerHTML = messageHTML;
+            tempContainer.appendChild(messageElement);
+        });
+        
+        // Prepend all the messages at once to avoid multiple reflows
+        messageContainer.insertBefore(tempContainer, messageContainer.firstChild);
+        
+        // Add event listeners to new buttons
+        document.querySelectorAll('#message-container .message-item .edit-message-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const messageId = this.getAttribute('data-message-id');
+                const messageElement = document.querySelector(`#message-${messageId} .message-content`);
+                
+                document.getElementById('edit-message-content').value = messageElement.innerText.trim();
+                document.getElementById('edit-message-id').value = messageId;
+                
+                new bootstrap.Modal(document.getElementById('editMessageModal')).show();
+            });
+        });
+        
+        document.querySelectorAll('#message-container .message-item .delete-message-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const messageId = this.getAttribute('data-message-id');
+                document.getElementById('delete-message-id').value = messageId;
+                new bootstrap.Modal(document.getElementById('deleteMessageModal')).show();
+            });
+        });
+        
+        document.querySelectorAll('#message-container .attachment-image').forEach(img => {
+            img.addEventListener('click', function() {
+                openImageInLightbox(this.src);
+            });
+        });
+    }
+    
+    function setupImageLightbox() {
+        const attachmentImages = document.querySelectorAll('.attachment-image');
+        const lightboxImage = document.getElementById('lightbox-image');
+        const imageLightbox = document.getElementById('imageLightbox');
+        
+        attachmentImages.forEach(img => {
+            img.addEventListener('click', function() {
+                openImageInLightbox(this.src);
+            });
+        });
+    }
+    
+    function openImageInLightbox(src) {
+        const lightboxImage = document.getElementById('lightbox-image');
+        if (lightboxImage) {
+            lightboxImage.src = src;
+            new bootstrap.Modal(document.getElementById('imageLightbox')).show();
+        }
+    }
+    
+    function markConversationAsRead() {
+        fetch(`/messaging/conversation/${conversationId}/mark-read/`, {
+            method: 'POST',
+            body: new URLSearchParams({
+                'csrfmiddlewaretoken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+    }
+    
+    function copyConversationLink() {
+        const linkElement = document.getElementById('meeting-link');
+        if (linkElement) {
+            navigator.clipboard.writeText(linkElement.textContent)
+                .then(() => {
+                    showToast('Link copied to clipboard', 'success');
+                })
+                .catch(() => {
+                    showToast('Failed to copy link', 'error');
+                });
+        }
+    }
+    
+    function showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toastId = 'toast-' + Date.now();
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'primary'} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.setAttribute('id', toastId);
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Initialize and show the toast
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 3000
+        });
+        bsToast.show();
+        
+        // Remove toast after it's hidden
+        toast.addEventListener('hidden.bs.toast', function () {
+            toast.remove();
+        });
+    }
+});
+
+// Helper function to handle file select
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        alert('File size must be less than 10MB');
+        event.target.value = '';
+        return;
+    }
+    
+    // Show file name in preview
+    const attachmentName = document.getElementById('attachment-name');
+    attachmentName.textContent = file.name;
+    
+    // Show preview container
+    const previewContainer = document.getElementById('attachment-preview');
+    previewContainer.style.display = 'flex';
+}
+
+// Function to copy the conversation link
+function copyConversationLink() {
+    const linkElement = document.getElementById('meeting-link');
+    if (linkElement) {
+        navigator.clipboard.writeText(linkElement.textContent)
+            .then(() => {
+                // Visual feedback
+                const copyButton = linkElement.nextElementSibling;
+                if (copyButton) {
+                    const originalHTML = copyButton.innerHTML;
+                    copyButton.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        copyButton.innerHTML = originalHTML;
+                    }, 2000);
+                }
+            });
+    }
+}
+</script>
+{% endblock %}

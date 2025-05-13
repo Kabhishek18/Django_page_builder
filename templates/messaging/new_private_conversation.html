@@ -1,0 +1,675 @@
+{# templates/messaging/new_private_conversation.html - Updated Version #}
+{% extends 'messaging/base_messaging.html' %}
+{% load static %}
+
+{% block messaging_extra_head %}
+<style>
+    /* Enhanced styling for new conversation page */
+    .recipient-selector {
+        border-radius: 10px;
+        padding: 20px;
+        background-color: #fff;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+    
+    .recipient-selector h4 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #2c3e50;
+        font-size: 1.25rem;
+    }
+    
+    .user-search-container {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .user-search-container .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+    }
+    
+    .user-search-input {
+        padding-left: 35px;
+        border-radius: 20px;
+        border: 1px solid #ced4da;
+        transition: all 0.2s;
+    }
+    
+    .user-search-input:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .frequent-contacts {
+        margin-bottom: 20px;
+    }
+    
+    .frequent-contacts h5 {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 10px;
+    }
+    
+    .frequent-contacts-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .contact-chip {
+        padding: 6px 12px;
+        background-color: #f5f5f5;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .contact-chip:hover {
+        background-color: #e9ecef;
+    }
+    
+    .contact-chip.selected {
+        background-color: #cfe2ff;
+    }
+    
+    .contact-chip .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #6c757d;
+        font-size: 12px;
+        margin-right: 8px;
+    }
+    
+    .contact-chip.online .avatar::after {
+        content: '';
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background-color: #2ecc71;
+        border-radius: 50%;
+        bottom: 0;
+        right: 0;
+        border: 1px solid white;
+    }
+    
+    .user-list {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+    }
+    
+    .user-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #f5f5f5;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .user-item:last-child {
+        border-bottom: none;
+    }
+    
+    .user-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .user-item.selected {
+        background-color: #e9f5ff;
+    }
+    
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #6c757d;
+        font-size: 16px;
+        margin-right: 12px;
+        position: relative;
+    }
+    
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        border: 2px solid white;
+    }
+    
+    .status-dot.online {
+        background-color: #2ecc71;
+    }
+    
+    .status-dot.offline {
+        background-color: #95a5a6;
+    }
+    
+    .user-info {
+        flex-grow: 1;
+    }
+    
+    .user-name {
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 2px;
+    }
+    
+    .user-status {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .message-compose {
+        border-radius: 10px;
+        padding: 20px;
+        background-color: #fff;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .message-compose h4 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #2c3e50;
+        font-size: 1.25rem;
+    }
+    
+    .selected-recipient {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    
+    .selected-recipient-name {
+        font-weight: 500;
+        margin-left: 10px;
+    }
+    
+    .change-recipient {
+        margin-left: auto;
+        color: #6c757d;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+    
+    .change-recipient:hover {
+        color: #495057;
+        text-decoration: underline;
+    }
+    
+    .message-textarea {
+        border-radius: 8px;
+        resize: none;
+        min-height: 100px;
+    }
+    
+    .message-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+    }
+    
+    .message-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .recipient-search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background-color: white;
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+    }
+    
+    .recipient-search-results.show {
+        display: block;
+    }
+    
+    .no-results {
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+    }
+    
+    /* Emoji picker styling */
+    .emoji-picker {
+        position: relative;
+    }
+    
+    .emoji-panel {
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 250px;
+        padding: 10px;
+        margin-bottom: 10px;
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+        z-index: 1000;
+        display: none;
+    }
+    
+    .emoji-panel.show {
+        display: grid;
+    }
+    
+    .emoji-item {
+        font-size: 1.2rem;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+    
+    .emoji-item:hover {
+        background-color: #f5f5f5;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .recipient-selector, .message-compose {
+            border-radius: 0;
+            box-shadow: none;
+        }
+        
+        .user-item {
+            padding: 8px 10px;
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            font-size: 14px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block messaging_content %}
+<div class="container py-3">
+    <h3 class="mb-4">New Message</h3>
+    
+    <form method="post" id="message-form">
+        {% csrf_token %}
+        
+        <div class="recipient-selector" id="recipient-section">
+            <h4>Select Recipient</h4>
+            
+            <div class="user-search-container">
+                <span class="search-icon">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" class="form-control user-search-input" id="user-search" placeholder="Search for users...">
+                <div class="recipient-search-results" id="search-results"></div>
+            </div>
+            
+            <!-- Frequently messaged users -->
+            <div class="frequent-contacts">
+                <h5>Frequently messaged</h5>
+                <div class="frequent-contacts-list">
+                    <!-- This would ideally be populated server-side with actual frequent contacts -->
+                    <div class="contact-chip" data-user-id="1" data-user-name="User 1">
+                        <div class="avatar">U1</div>
+                        <span>User 1</span>
+                    </div>
+                    <div class="contact-chip online" data-user-id="2" data-user-name="User 2">
+                        <div class="avatar">U2</div>
+                        <span>User 2</span>
+                    </div>
+                    <div class="contact-chip" data-user-id="3" data-user-name="User 3">
+                        <div class="avatar">U3</div>
+                        <span>User 3</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="user-list" id="user-list">
+                {% for user_option in form.recipient.field.choices %}
+                    {% if user_option.0 %}
+                    <div class="user-item" data-user-id="{{ user_option.0 }}">
+                        <div class="user-avatar">
+                            {{ user_option.1|slice:":2" }}
+                            <span class="status-dot {% if forloop.counter|divisibleby:3 %}online{% else %}offline{% endif %}"></span>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ user_option.1 }}</div>
+                            <div class="user-status">
+                                {% if forloop.counter|divisibleby:3 %}
+                                <span class="text-success">Online</span>
+                                {% else %}
+                                <span class="text-muted">Offline</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            {{ form.recipient.errors }}
+            <input type="hidden" name="recipient" id="selected-recipient-id" value="{{ form.recipient.value|default:'' }}">
+        </div>
+        
+        <div class="message-compose" id="compose-section" style="display: none;">
+            <h4>Compose Message</h4>
+            
+            <div class="selected-recipient" id="recipient-display">
+                <div class="user-avatar" id="recipient-avatar"></div>
+                <div class="selected-recipient-name" id="recipient-name"></div>
+                <div class="change-recipient" id="change-recipient">Change</div>
+            </div>
+            
+            <div class="form-group">
+                <textarea class="form-control message-textarea" id="message-content" name="message" rows="5" placeholder="Type your message here...">{{ form.message.value|default:'' }}</textarea>
+                {{ form.message.errors }}
+            </div>
+            
+            <div class="message-footer">
+                <div class="message-actions">
+                    <div class="emoji-picker">
+                        <button type="button" class="btn btn-outline-secondary" id="emoji-button">
+                            <i class="far fa-smile"></i>
+                        </button>
+                        <div class="emoji-panel" id="emoji-panel">
+                            <div class="emoji-item">😀</div>
+                            <div class="emoji-item">😃</div>
+                            <div class="emoji-item">😄</div>
+                            <div class="emoji-item">😁</div>
+                            <div class="emoji-item">😆</div>
+                            <div class="emoji-item">😅</div>
+                            <div class="emoji-item">😂</div>
+                            <div class="emoji-item">🤣</div>
+                            <div class="emoji-item">😊</div>
+                            <div class="emoji-item">😇</div>
+                            <div class="emoji-item">🙂</div>
+                            <div class="emoji-item">🙃</div>
+                            <div class="emoji-item">😉</div>
+                            <div class="emoji-item">😌</div>
+                            <div class="emoji-item">😍</div>
+                            <div class="emoji-item">🥰</div>
+                            <div class="emoji-item">😘</div>
+                            <div class="emoji-item">😗</div>
+                            <div class="emoji-item">😙</div>
+                            <div class="emoji-item">😚</div>
+                            <div class="emoji-item">👍</div>
+                            <div class="emoji-item">👎</div>
+                            <div class="emoji-item">❤️</div>
+                            <div class="emoji-item">😢</div>
+                            <div class="emoji-item">😭</div>
+                            <div class="emoji-item">😤</div>
+                            <div class="emoji-item">🔥</div>
+                            <div class="emoji-item">✨</div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-secondary" id="attachment-button" disabled>
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                </div>
+                
+                <div>
+                    <a href="{% url 'messaging:inbox' %}" class="btn btn-outline-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary" id="send-button" disabled>Send</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block messaging_extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize variables
+        const userItems = document.querySelectorAll('.user-item');
+        const contactChips = document.querySelectorAll('.contact-chip');
+        const userSearch = document.getElementById('user-search');
+        const userList = document.getElementById('user-list');
+        const searchResults = document.getElementById('search-results');
+        const recipientIdInput = document.getElementById('selected-recipient-id');
+        const recipientSection = document.getElementById('recipient-section');
+        const composeSection = document.getElementById('compose-section');
+        const recipientAvatar = document.getElementById('recipient-avatar');
+        const recipientName = document.getElementById('recipient-name');
+        const changeRecipient = document.getElementById('change-recipient');
+        const messageContent = document.getElementById('message-content');
+        const sendButton = document.getElementById('send-button');
+        const messageForm = document.getElementById('message-form');
+        const emojiButton = document.getElementById('emoji-button');
+        const emojiPanel = document.getElementById('emoji-panel');
+        const emojiItems = document.querySelectorAll('.emoji-item');
+        
+        // Check if recipient is already selected (e.g. from GET parameter)
+        if (recipientIdInput.value) {
+            const selectedItem = document.querySelector(`.user-item[data-user-id="${recipientIdInput.value}"]`);
+            if (selectedItem) {
+                selectRecipient(
+                    recipientIdInput.value,
+                    selectedItem.querySelector('.user-name').textContent,
+                    selectedItem.querySelector('.user-avatar').textContent.trim()
+                );
+            }
+        }
+        
+        // Select recipient when clicking on a user item
+        userItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                const userName = this.querySelector('.user-name').textContent;
+                const userInitials = this.querySelector('.user-avatar').textContent.trim();
+                
+                selectRecipient(userId, userName, userInitials);
+            });
+        });
+        
+        // Select recipient when clicking on a contact chip
+        contactChips.forEach(chip => {
+            chip.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                const userName = this.getAttribute('data-user-name');
+                const userInitials = this.querySelector('.avatar').textContent.trim();
+                
+                selectRecipient(userId, userName, userInitials);
+            });
+        });
+        
+        // Search for users
+        if (userSearch) {
+            userSearch.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                
+                if (searchTerm === '') {
+                    searchResults.classList.remove('show');
+                    userList.querySelectorAll('.user-item').forEach(item => {
+                        item.style.display = '';
+                    });
+                    return;
+                }
+                
+                // Filter user list
+                let hasResults = false;
+                userList.querySelectorAll('.user-item').forEach(item => {
+                    const userName = item.querySelector('.user-name').textContent.toLowerCase();
+                    
+                    if (userName.includes(searchTerm)) {
+                        item.style.display = '';
+                        hasResults = true;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                
+                // Show no results message if needed
+                if (!hasResults) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'no-results';
+                    noResults.textContent = 'No users found matching your search';
+                    
+                    searchResults.innerHTML = '';
+                    searchResults.appendChild(noResults);
+                    searchResults.classList.add('show');
+                } else {
+                    searchResults.classList.remove('show');
+                }
+            });
+        }
+        
+        // Change recipient
+        if (changeRecipient) {
+            changeRecipient.addEventListener('click', function() {
+                recipientSection.style.display = 'block';
+                composeSection.style.display = 'none';
+                recipientIdInput.value = '';
+                
+                // Remove selected state from all items
+                userItems.forEach(item => {
+                    item.classList.remove('selected');
+                });
+                
+                contactChips.forEach(chip => {
+                    chip.classList.remove('selected');
+                });
+            });
+        }
+        
+        // Enable/disable send button based on message content
+        if (messageContent) {
+            messageContent.addEventListener('input', function() {
+                sendButton.disabled = this.value.trim() === '';
+            });
+            
+            // Initialize on page load
+            messageContent.dispatchEvent(new Event('input'));
+        }
+        
+        // Emoji picker
+        if (emojiButton && emojiPanel) {
+            emojiButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                emojiPanel.classList.toggle('show');
+            });
+            
+            // Close emoji panel when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!emojiPanel.contains(e.target) && e.target !== emojiButton) {
+                    emojiPanel.classList.remove('show');
+                }
+            });
+            
+            // Add emoji to message
+            emojiItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const emoji = this.textContent;
+                    
+                    // Insert emoji at cursor position
+                    const cursorPosition = messageContent.selectionStart;
+                    const textBeforeCursor = messageContent.value.substring(0, cursorPosition);
+                    const textAfterCursor = messageContent.value.substring(cursorPosition);
+                    
+                    messageContent.value = textBeforeCursor + emoji + textAfterCursor;
+                    
+                    // Set cursor position after emoji
+                    messageContent.selectionStart = cursorPosition + emoji.length;
+                    messageContent.selectionEnd = cursorPosition + emoji.length;
+                    messageContent.focus();
+                    
+                    // Update send button state
+                    messageContent.dispatchEvent(new Event('input'));
+                });
+            });
+        }
+        
+        // Form submission validation
+        if (messageForm) {
+            messageForm.addEventListener('submit', function(e) {
+                if (!recipientIdInput.value) {
+                    e.preventDefault();
+                    alert('Please select a recipient');
+                    return;
+                }
+                
+                if (!messageContent.value.trim()) {
+                    e.preventDefault();
+                    alert('Please enter a message');
+                    return;
+                }
+            });
+        }
+        
+        // Helper function to select a recipient
+        function selectRecipient(userId, userName, userInitials) {
+            // Set the recipient ID
+            recipientIdInput.value = userId;
+            
+            // Update the recipient display
+            recipientAvatar.textContent = userInitials;
+            recipientName.textContent = userName;
+            
+            // Hide recipient section and show compose section
+            recipientSection.style.display = 'none';
+            composeSection.style.display = 'block';
+            
+            // Focus on message input
+            messageContent.focus();
+            
+            // Add selected state to the appropriate user item
+            userItems.forEach(item => {
+                if (item.getAttribute('data-user-id') === userId) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+            
+            // Add selected state to the appropriate contact chip
+            contactChips.forEach(chip => {
+                if (chip.getAttribute('data-user-id') === userId) {
+                    chip.classList.add('selected');
+                } else {
+                    chip.classList.remove('selected');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
