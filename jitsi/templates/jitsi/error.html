@@ -1,0 +1,85 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block jitsi_extra_head %}
+<style>
+    .error-container {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        max-width: 600px;
+        margin: 50px auto;
+        text-align: center;
+    }
+    
+    .error-icon {
+        font-size: 60px;
+        color: #dc3545;
+        margin-bottom: 20px;
+    }
+    
+    .error-title {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: #333;
+    }
+    
+    .error-details {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        font-family: monospace;
+        text-align: left;
+        margin: 20px 0;
+        overflow-x: auto;
+    }
+    
+    .error-actions {
+        margin-top: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block jitsi_content %}
+<div class="error-container">
+    <div class="error-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    
+    <h2 class="error-title">Jitsi Meeting Error</h2>
+    
+    <p>We encountered a problem while trying to connect to the meeting.</p>
+    
+    {% if error_message %}
+    <div class="error-details">
+        {{ error_message }}
+    </div>
+    {% endif %}
+    
+    <div class="error-actions">
+        <a href="{% url 'jitsi:dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        <a href="javascript:location.reload()" class="btn btn-outline-secondary ml-2">
+            <i class="fas fa-sync"></i> Try Again
+        </a>
+    </div>
+    
+    <div class="mt-4">
+        <p class="text-muted">
+            Please make sure the Jitsi server is running and accessible at: {{ jitsi_domain }}
+        </p>
+        
+        <div class="mt-3">
+            <h5>Troubleshooting Steps:</h5>
+            <ul class="text-start">
+                <li>Check if the Jitsi Docker container is running</li>
+                <li>Ensure port 8443 is accessible</li>
+                <li>Check network connection between the application and Jitsi server</li>
+                <li>Verify the configuration in settings.py</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

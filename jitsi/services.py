@@ -6,12 +6,15 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from .models import JitsiMeeting, JitsiCustomization, JitsiFeatureConfig
 
+# Update to jitsi/services.py
+
+# Fix the generate_jwt_token function
 def generate_jwt_token(domain, app_id, app_secret, room_name, user_id, user_name, email, is_moderator=False, expiry=24):
     """
     Generate a JWT token for Jitsi authentication
     
     Args:
-        domain: Jitsi domain (e.g., meet.jitsi.si)
+        domain: Jitsi domain (e.g., localhost:8443)
         app_id: Application ID for JWT
         app_secret: Application secret for JWT
         room_name: Name of the meeting room
@@ -29,15 +32,15 @@ def generate_jwt_token(domain, app_id, app_secret, room_name, user_id, user_name
     
     payload = {
         'iss': app_id,
-        'aud': 'jitsi',  # Make sure this matches the JWT_ACCEPTED_AUDIENCES in Jitsi config
+        'aud': 'jitsi',  # Make sure this matches JWT_ACCEPTED_AUDIENCES in Jitsi config
         'sub': domain,   # Make sure this matches with your Jitsi domain
         'exp': expiry_time,
         'nbf': now,
         'iat': now,
-        'room': room_name,  # Using room ID consistently
+        'room': str(room_name),  # Ensure the room name is a string
         'context': {
             'user': {
-                'id': user_id,
+                'id': str(user_id),  # Convert user_id to string
                 'name': user_name,
                 'email': email,
                 'moderator': is_moderator
@@ -45,14 +48,17 @@ def generate_jwt_token(domain, app_id, app_secret, room_name, user_id, user_name
         }
     }
     
-    token = jwt.encode(payload, app_secret, algorithm='HS256')
-    
-    # In some JWT libraries, encode returns a byte string
-    if isinstance(token, bytes):
-        token = token.decode('utf-8')
+    try:
+        token = jwt.encode(payload, app_secret, algorithm='HS256')
         
-    return token
-
+        # In some JWT libraries, encode returns a byte string
+        if isinstance(token, bytes):
+            token = token.decode('utf-8')
+            
+        return token
+    except Exception as e:
+        print(f"Error generating JWT token: {e}")
+        return ""
 
 def get_default_jitsi_config():
     """
@@ -147,6 +153,8 @@ def get_default_jitsi_config():
     }
 
 
+# jitsi/services.py - Update the get_jitsi_config function
+
 def get_jitsi_config(meeting):
     """
     Get the Jitsi configuration based on the meeting settings
@@ -162,39 +170,131 @@ def get_jitsi_config(meeting):
     
     # Apply feature configuration if exists
     if meeting and meeting.feature_config:
-        feature_config = meeting.feature_config.get_config_dict()
-        config.update(feature_config)
-        
-        # Update toolbar buttons based on enabled features
-        toolbar_buttons = ['microphone', 'camera', 'hangup']
-        
-        if feature_config.get('desktopSharingEnabled', True):
-            toolbar_buttons.append('desktop')
-        
-        if not feature_config.get('disableChat', False):
-            toolbar_buttons.append('chat')
+        try:
+            feature_config = meeting.feature_config.get_config_dict()
+            config.update(feature_config)
             
-        if feature_config.get('raiseHandEnabled', True):
-            toolbar_buttons.append('raisehand')
+            # Update toolbar buttons based on enabled features
+            toolbar_buttons = ['microphone', 'camera', 'hangup']
             
-        toolbar_buttons.append('participants-pane')
-        
-        if feature_config.get('tileViewEnabled', True):
-            toolbar_buttons.append('tileview')
+            if feature_config.get('desktopSharingEnabled', True):
+                toolbar_buttons.append('desktop')
             
-        if feature_config.get('virtualBackgroundEnabled', True):
-            toolbar_buttons.append('select-background')
+            if not feature_config.get('disableChat', False):
+                toolbar_buttons.append('chat')
+                
+            if feature_config.get('raiseHandEnabled', True):
+                toolbar_buttons.append('raisehand')
+                
+            toolbar_buttons.append('participants-pane')
             
-        toolbar_buttons.append('settings')
-        
-        config['toolbarButtons'] = toolbar_buttons
-        
-        # Update recording and streaming settings
-        config['fileRecordingsEnabled'] = feature_config.get('fileRecordingsEnabled', False)
-        config['liveStreamingEnabled'] = feature_config.get('liveStreamingEnabled', False)
+            if feature_config.get('tileViewEnabled', True):
+                toolbar_buttons.append('tileview')
+                
+            if feature_config.get('virtualBackgroundEnabled', True):
+                toolbar_buttons.append('select-background')
+                
+            toolbar_buttons.append('settings')
+            
+            config['toolbarButtons'] = toolbar_buttons
+            
+            # Update recording and streaming settings
+            config['fileRecordingsEnabled'] = feature_config.get('fileRecordingsEnabled', False)
+            config['liveStreamingEnabled'] = feature_config.get('liveStreamingEnabled', False)
+        except Exception as e:
+            print(f"Error updating config from feature_config: {e}")
+            # Fall back to default config
+            pass
     
     return config
 
+def get_default_jitsi_config():
+    """
+    Get the default configuration for Jitsi Meet
+    
+    Returns:
+        dict: Default configuration for Jitsi Meet
+    """
+    return {
+        # Core settings
+        'disableDeepLinking': True,
+        'disableInviteFunctions': True,
+        'enableClosePage': True,
+        'prejoinPageEnabled': True,
+        
+        # UI settings
+        'defaultLanguage': 'en',
+        'disableThirdPartyRequests': True,
+        'hideConferenceSubject': False,
+        'hideConferenceTimer': False,
+        'noticeMessage': '',
+        
+        # Behavior settings
+        'enableNoAudioDetection': True,
+        'enableNoisyMicDetection': True,
+        'startAudioOnly': False,
+        'startWithAudioMuted': False,
+        'startWithVideoMuted': False,
+        'startScreenSharing': False,
+        
+        # Feature settings
+        'enableWelcomePage': False,
+        'enableClosePage': True,
+        'disableAudioLevels': False,
+        'disableChat': False,
+        'disableDocument': True,
+        'disableFilmstrip': False,
+        'disableInviteFunctions': True,
+        'disableJoinLeaveSounds': False,
+        'disablePolls': True,
+        'disableReactions': False,
+        'disableRemoteMute': False,
+        'disableRemoteVideoMenu': False,
+        'disableSelfView': False,
+        'disableSelfViewSettings': False,
+        'disableShortcuts': False,
+        'disableTileView': False,
+        'disableProfile': False,
+        'disableInitialGUM': False,
+        
+        # Security settings
+        'securityUi': {
+            'hideLobbyButton': False,
+            'disableLobbyPassword': False,
+        },
+        'lobby': {
+            'enableForceMute': True,
+        },
+        
+        # Video settings
+        'constraints': {
+            'video': {
+                'height': {
+                    'ideal': 720,
+                    'max': 1080,
+                    'min': 180
+                }
+            }
+        },
+        
+        # Toolbar settings
+        'toolbarButtons': [
+            'microphone', 'camera', 'desktop', 'chat', 
+            'raisehand', 'participants-pane', 'tileview',
+            'select-background', 'settings', 'hangup'
+        ],
+        
+        # P2P settings (disable for more stability with Docker Jitsi)
+        'p2p': {
+            'enabled': False
+        },
+        
+        # Recording settings
+        'fileRecordingsEnabled': False,
+        
+        # Live streaming settings
+        'liveStreamingEnabled': False
+    }
 
 
 def apply_customization(config, customization):

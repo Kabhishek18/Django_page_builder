@@ -242,7 +242,7 @@ echo -e "  python manage.py runserver"
 # If superuser was created, show login info
 if [ "$CREATE_SUPERUSER" = true ]; then
     echo -e "\n${BLUE}Admin login details:${NC}"
-    echo -e "  URL: http://127.0.0.1:8000/admin/"
+    echo -e "  URL: http://127.0.0.1:5000/admin/"
     echo -e "  Username: ${YELLOW}$SUPERUSER_USERNAME${NC}"
     echo -e "  Password: ${YELLOW}$SUPERUSER_PASSWORD${NC}"
 fi

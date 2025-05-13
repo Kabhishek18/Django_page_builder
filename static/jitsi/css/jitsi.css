@@ -71,6 +71,13 @@
     overflow-y: auto;
 }
 
+#jitsi-container {
+    flex: 1;
+    min-height: 400px;
+    background-color: #1a1a1a;
+}
+
+
 /* Page header styling */
 .page-header {
     display: flex;

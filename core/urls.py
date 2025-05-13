@@ -15,7 +15,6 @@ urlpatterns = [
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     
     # Include app URLs
-    path('media-manager/', include('media.urls')),
     path('themes/', include('themes.urls')),
     path('admin/pagebuilder/', include('pagebuilder.urls', namespace='pagebuilder')),
     path('meetings/', include('jitsi.urls')),

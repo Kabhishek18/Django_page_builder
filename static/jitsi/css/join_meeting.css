@@ -1,109 +1,19 @@
-/* join_meeting.css - Specific styles for the join meeting page */
+/* static/jitsi/css/join_meeting.css */
 
-.meeting-sidebar {
-    width: 320px;
-    background-color: #fff;
-    border-left: 1px solid #e0e0e0;
-    position: absolute;
-    top: 0;
-    right: 0;
+body, html {
     height: 100%;
-    z-index: 90;
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-    overflow-y: auto;
-    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-}
-
-.meeting-sidebar.show {
-    transform: translateX(0);
-}
-
-.sidebar-header {
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #f8f9fa;
-}
-
-.sidebar-header h4 {
     margin: 0;
-    color: #2c3e50;
-    font-size: 1.1rem;
+    padding: 0;
 }
 
-.sidebar-close {
-    background: none;
-    border: none;
-    font-size: 1.2rem;
-    cursor: pointer;
-    color: #6c757d;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-}
-
-.sidebar-close:hover {
-    background-color: #e9ecef;
-}
-
-.sidebar-content {
-    padding: 15px;
-}
-
-.sidebar-content h5 {
-    margin: 0 0 10px 0;
-    color: #2c3e50;
-    font-size: 1.1rem;
-}
-
-.sidebar-content h6 {
-    margin: 15px 0 10px 0;
-    color: #6c757d;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.sidebar-content p {
-    margin-bottom: 15px;
-    color: #495057;
-    font-size: 0.95rem;
-    line-height: 1.5;
-}
-
-.meeting-link-container {
-    display: flex;
-    align-items: center;
-    background-color: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    padding: 8px;
-    margin: 15px 0;
-}
-
-.meeting-link {
-    flex-grow: 1;
-    font-family: monospace;
-    font-size: 0.85rem;
-    padding: 6px 8px;
-    background-color: #fff;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    margin-right: 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #495057;
-}
-
-.host-controls {
-    margin-top: 15px;
+#jitsi-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
 }
 
 .toggle-sidebar {
@@ -121,27 +31,84 @@
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-    transition: background-color 0.2s;
 }
 
-.toggle-sidebar:hover {
-    background-color: rgba(255, 255, 255, 0.95);
+.meeting-sidebar {
+    width: 320px;
+    background-color: #fff;
+    border-left: 1px solid #e0e0e0;
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
 }
 
-.toggle-sidebar i {
-    font-size: 18px;
-    color: #3498db;
+.meeting-sidebar.show {
+    transform: translateX(0);
 }
 
+.copy-to-clipboard {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.copy-to-clipboard:hover {
+    background-color: #0069d9;
+}
+
+/* Error message container */
+.error-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 600px;
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 48px;
+    color: #dc3545;
+    margin-bottom: 20px;
+}
+
+.error-title {
+    font-size: 24px;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.error-message {
+    margin-bottom: 20px;
+    color: #555;
+}
+
+.error-code {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    margin-bottom: 20px;
+    overflow-x: auto;
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .meeting-sidebar {
         width: 100%;
-    }
-    
-    .toggle-sidebar {
-        top: 10px;
-        right: 10px;
-        width: 36px;
-        height: 36px;
     }
 }

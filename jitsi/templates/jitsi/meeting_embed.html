@@ -56,21 +56,50 @@
             color: #333;
         }
         
-        .branding {
+        .error-container {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            z-index: 10;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            display: none;
         }
         
-        .branding img {
-            height: 40px;
-            opacity: 0.7;
-            transition: opacity 0.2s;
+        .error-icon {
+            font-size: 48px;
+            color: #dc3545;
+            margin-bottom: 20px;
         }
         
-        .branding img:hover {
-            opacity: 1;
+        .error-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .error-message {
+            margin-bottom: 20px;
+            color: #555;
+        }
+        
+        .btn-primary {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0069d9;
         }
     </style>
 </head>
@@ -81,98 +110,110 @@
         <div class="loading-text">Connecting to your meeting...</div>
     </div>
     
+    <!-- Error container -->
+    <div class="error-container" id="error-container">
+        <div class="error-icon">⚠️</div>
+        <h2 class="error-title">Connection Error</h2>
+        <div class="error-message" id="error-message">
+            Could not connect to the Jitsi server. Please check your connection and try again.
+        </div>
+        <a href="{{ return_url|default:'/' }}" class="btn-primary">Return to Dashboard</a>
+    </div>
+    
     <!-- Meeting container -->
     <div id="jitsi-container"></div>
     
-    <!-- Branding (if customized) -->
-    {% if room.has_custom_branding %}
-    <div class="branding">
-        <img src="{% static 'images/your_logo.png' %}" alt="Branding Logo">
-    </div>
-    {% endif %}
-    
     <!-- Jitsi Meet API -->
-    <script src="https://{{ domain }}/external_api.js"></script>
     <script>
         // Initialize Jitsi Meet API
         document.addEventListener('DOMContentLoaded', function() {
-            const domain = "{{ domain }}";
-            const options = {
-                roomName: "{{ room.id }}",  // Use room ID for the actual room
-                width: "100%",
-                height: "100%",
-                parentNode: document.getElementById('jitsi-container'),
-                configOverwrite: {
-                    ...{{ config|safe }},
-                    // Meeting display name settings
-                    subject: "{{ room.name|escapejs }}",  // Show room name in the UI
-                    roomDisplayName: "{{ room.name|escapejs }}",  // Display room name
-                    // Custom logo settings
-                    disableBrandWatermark: false,
-                    brandingDataUrl: "{{ meeting.customization.logo.url|default:'' }}",
-                    watermark: {
-                        display: true,
-                        showJitsiWatermark: false,
-                        showCustomWatermark: true,
-                        customWatermarkLink: '',
-                        customWatermarkPath: "{{ meeting.customization.logo.url|default:'' }}" 
-                    }
-                },
-                interfaceConfigOverwrite: {
-                    SHOW_JITSI_WATERMARK: false,
-                    SHOW_WATERMARK_FOR_GUESTS: true,
-                    DEFAULT_LOGO_URL: "{{ meeting.customization.logo.url|default:'' }}",
-                    SHOW_BRAND_WATERMARK: true,
-                    BRAND_WATERMARK_LINK: '',
-                    BRAND_WATERMARK_URL: "{{ meeting.customization.logo.url|default:'' }}"
-                },
-                userInfo: {
-                    displayName: "{{ user_info.displayName|escapejs }}",
-                    email: "{{ user_info.email|escapejs }}"
-                },
-                jwt: "{{ token }}"
-            };
+            console.log("Loading Jitsi API from:", "http://{{ domain }}/external_api.js");
             
-            // Hide loading indicator when iframe API has loaded
-            window.addEventListener('load', function() {
-                setTimeout(function() {
-                    const loadingElement = document.getElementById('loading');
-                    if (loadingElement) {
-                        loadingElement.style.opacity = '0';
-                        setTimeout(function() {
-                            loadingElement.style.display = 'none';
-                        }, 500);
-                    }
-                }, 1000);
-            });
-            
-            // Initialize Jitsi Meet
-            const api = new JitsiMeetExternalAPI(domain, options);
-            
-            // Event handling
-            api.addEventListeners({
-                videoConferenceJoined: function() {
-                    console.log('Meeting joined');
-                    hideLoading();
-                },
-                videoConferenceLeft: function() {
-                    console.log('Meeting left');
-                    // Handle meeting exit - could redirect or show a message
-                },
-                participantJoined: function(participant) {
-                    console.log('Participant joined:', participant);
-                },
-                participantLeft: function(participant) {
-                    console.log('Participant left:', participant);
-                },
-                readyToClose: function() {
-                    window.location.href = "{{ return_url|default:'/' }}";
-                }
-            });
-            
-            // Make API available globally
-            window.jitsiApi = api;
+            // Load the Jitsi external API script dynamically
+            const script = document.createElement('script');
+            script.src = "http://{{ domain }}/external_api.js";
+            script.async = true;
+            script.onload = initJitsi;
+            script.onerror = handleScriptError;
+            document.body.appendChild(script);
         });
+        
+        function handleScriptError() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error-container').style.display = 'block';
+            document.getElementById('error-message').textContent = 
+                'Could not load the Jitsi API from {{ domain }}. Please check if the Jitsi server is running and accessible.';
+        }
+        
+        function initJitsi() {
+            try {
+                const domain = "{{ domain }}";
+                const options = {
+                    roomName: "{{ room.id }}",
+                    width: "100%",
+                    height: "100%",
+                    parentNode: document.getElementById('jitsi-container'),
+                    configOverwrite: {
+                        // Meeting display name settings
+                        subject: "{{ room.name|escapejs }}",
+                        roomDisplayName: "{{ room.name|escapejs }}",
+                        prejoinPageEnabled: true,
+                        startWithAudioMuted: false,
+                        startWithVideoMuted: false,
+                        disableDeepLinking: true
+                    },
+                    userInfo: {
+                        displayName: "{{ user_info.displayName|escapejs }}",
+                        email: "{{ user_info.email|escapejs }}"
+                    },
+                    jwt: "{{ token }}"
+                };
+                
+                console.log("Initializing Jitsi with options:", options);
+                
+                // Initialize Jitsi Meet
+                const api = new JitsiMeetExternalAPI(domain, options);
+                
+                // Event handling
+                api.addEventListeners({
+                    videoConferenceJoined: function() {
+                        console.log('Meeting joined');
+                        hideLoading();
+                    },
+                    videoConferenceLeft: function() {
+                        console.log('Meeting left');
+                        window.location.href = "{{ return_url|default:'/' }}";
+                    },
+                    participantJoined: function(participant) {
+                        console.log('Participant joined:', participant);
+                    },
+                    participantLeft: function(participant) {
+                        console.log('Participant left:', participant);
+                    },
+                    readyToClose: function() {
+                        window.location.href = "{{ return_url|default:'/' }}";
+                    },
+                    // Handle connection errors
+                    connectionEstablished: function() {
+                        console.log('Connection established');
+                    },
+                    connectionFailed: function() {
+                        console.log('Connection failed');
+                        showError('Could not connect to the meeting room. Please check your connection and try again.');
+                    },
+                    errorOccurred: function(error) {
+                        console.log('Error occurred:', error);
+                        showError('An error occurred: ' + error.error);
+                    }
+                });
+                
+                // Make API available globally
+                window.jitsiApi = api;
+            } catch (error) {
+                console.error("Error initializing Jitsi:", error);
+                showError('Could not initialize the meeting: ' + error.message);
+            }
+        }
         
         // Hide loading indicator
         function hideLoading() {
@@ -183,6 +224,13 @@
                     loadingElement.style.display = 'none';
                 }, 500);
             }
+        }
+        
+        // Show error message
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error-container').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
         }
     </script>
 </body>
